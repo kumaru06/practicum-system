@@ -106,3 +106,40 @@ function upload_cor(array $file): string
     }
     return 'uploads/cor/' . $name;
 }
+
+function upload_document(array $file, string $folder = 'documents', bool $required = true): ?string
+{
+    if (($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+        if ($required) {
+            throw new RuntimeException('Document upload is required.');
+        }
+        return null;
+    }
+    if (($file['error'] ?? UPLOAD_ERR_OK) !== UPLOAD_ERR_OK) {
+        throw new RuntimeException('Unable to read uploaded file.');
+    }
+    if ($file['size'] > 8 * 1024 * 1024) {
+        throw new RuntimeException('Uploaded file must not exceed 8MB.');
+    }
+
+    $allowed = [
+        'application/pdf' => 'pdf',
+        'image/jpeg' => 'jpg',
+        'image/png' => 'png',
+    ];
+    $mime = (new finfo(FILEINFO_MIME_TYPE))->file($file['tmp_name']);
+    if (!isset($allowed[$mime])) {
+        throw new RuntimeException('Upload must be a PDF, JPG, or PNG file.');
+    }
+
+    $safeFolder = preg_replace('/[^a-z0-9_\/-]/i', '', $folder) ?: 'documents';
+    $targetDir = __DIR__ . '/uploads/' . $safeFolder;
+    if (!is_dir($targetDir)) {
+        mkdir($targetDir, 0755, true);
+    }
+    $name = bin2hex(random_bytes(16)) . '.' . $allowed[$mime];
+    if (!move_uploaded_file($file['tmp_name'], $targetDir . '/' . $name)) {
+        throw new RuntimeException('Unable to save uploaded file.');
+    }
+    return 'uploads/' . $safeFolder . '/' . $name;
+}

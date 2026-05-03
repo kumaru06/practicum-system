@@ -27,6 +27,40 @@
     </div>
 </section>
 
+<section class="card">
+    <div class="section-head section-head-split">
+        <div><h2>Pre-Deployment Requirements</h2><p class="muted">Upload all required documents, then submit them for coordinator review.</p></div>
+        <span class="badge <?= e($enrollment['predeployment_status'] ?? 'not_submitted') ?>"><?= e(str_replace('_', ' ', $enrollment['predeployment_status'] ?? 'not_submitted')) ?></span>
+    </div>
+    <div class="table-wrap"><table class="data-table"><thead><tr><th>Requirement</th><th>Notes</th><th>File</th><th>Upload</th></tr></thead><tbody>
+        <?php foreach ($requirements as $key => $req): ?>
+            <tr>
+                <td><?= e($req['requirement_name']) ?></td>
+                <td><?= e($req['notes'] ?? '') ?></td>
+                <td><?= !empty($req['file_path']) ? '<a class="btn btn-small" target="_blank" href="' . e($req['file_path']) . '">View</a>' : '<span class="muted">Not uploaded</span>' ?></td>
+                <td>
+                    <?php if (!in_array($enrollment['predeployment_status'] ?? '', ['submitted','approved','forwarded','accepted','orientation_scheduled','orientation_completed'], true)): ?>
+                    <form method="post" enctype="multipart/form-data" class="inline" style="display:flex;gap:8px;align-items:center">
+                        <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                        <input type="hidden" name="action" value="student_upload_requirement">
+                        <input type="hidden" name="requirement_key" value="<?= e($key) ?>">
+                        <input required type="file" name="requirement_file" accept=".pdf,.jpg,.jpeg,.png">
+                        <button class="btn btn-small" type="submit">Upload</button>
+                    </form>
+                    <?php else: ?><span class="muted">Locked</span><?php endif; ?>
+                </td>
+            </tr>
+        <?php endforeach; ?>
+    </tbody></table></div>
+    <?php if (($enrollment['predeployment_status'] ?? 'not_submitted') === 'not_submitted'): ?>
+        <form method="post" style="margin-top:16px">
+            <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+            <input type="hidden" name="action" value="student_submit_requirements">
+            <button class="btn btn-primary" type="submit">Submit for Review</button>
+        </form>
+    <?php endif; ?>
+</section>
+
 <div class="grid two">
     <section class="card"><h2>Submit Daily Time Record</h2><form method="post" class="form js-validate"><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="action" value="student_add_dtr"><label>Date<input required type="date" name="work_date"></label><label>Time In<input required type="time" name="time_in"></label><label>Time Out<input required type="time" name="time_out"></label><label>Tasks Done<textarea required maxlength="500" name="tasks_done"></textarea></label><button class="btn btn-primary" type="submit"><span class="btn-text">Submit DTR</span><span class="spinner"></span></button></form></section>
     <section class="card"><h2>Submit Weekly Narrative</h2><form method="post" enctype="multipart/form-data" class="form js-validate"><input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>"><input type="hidden" name="action" value="student_add_weekly"><label>Week Number<input required type="number" min="1" name="week_no"></label><label>Narrative Text<textarea maxlength="1500" name="report_text"></textarea></label><label>PDF Report<input type="file" name="report_file" accept=".pdf"></label><button class="btn btn-primary" type="submit"><span class="btn-text">Submit Weekly Report</span><span class="spinner"></span></button></form></section>

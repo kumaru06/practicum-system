@@ -6,7 +6,8 @@
             <input type="hidden" name="action" value="admin_create_coordinator">
             <label>Full Name<input required name="name"></label>
             <label>Email<input required type="email" name="email"></label>
-            <label>Password<input required minlength="8" type="password" name="password"></label>
+            <label>Department<input required name="department" value="OJT Department"></label>
+            <p class="muted">A temporary password will be generated and emailed to the coordinator.</p>
             <button class="btn btn-primary" type="submit"><span class="btn-text">Create Coordinator</span><span class="spinner"></span></button>
         </form>
     </section>

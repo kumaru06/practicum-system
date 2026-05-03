@@ -3,10 +3,10 @@ class Enrollment
 {
     public function __construct(private PDO $db) {}
 
-    public function create(int $studentId, int $companyId, string $startDate, string $endDate, int $requiredHours): int
+    public function create(int $studentId, int $companyId, string $startDate, string $endDate, int $requiredHours, string $academicTerm = '', string $termStartDate = '', string $termEndDate = ''): int
     {
-        $stmt = $this->db->prepare('INSERT INTO ojt_enrollments (student_id, company_id, start_date, end_date, required_hours, status) VALUES (?, ?, ?, ?, ?, "active") ON DUPLICATE KEY UPDATE company_id = VALUES(company_id), start_date = VALUES(start_date), end_date = VALUES(end_date), required_hours = VALUES(required_hours), status = "active"');
-        $stmt->execute([$studentId, $companyId, $startDate, $endDate, $requiredHours]);
+        $stmt = $this->db->prepare('INSERT INTO ojt_enrollments (student_id, company_id, academic_term, term_start_date, term_end_date, start_date, end_date, required_hours, status, predeployment_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, "pending", "not_submitted") ON DUPLICATE KEY UPDATE company_id = VALUES(company_id), academic_term = VALUES(academic_term), term_start_date = VALUES(term_start_date), term_end_date = VALUES(term_end_date), start_date = VALUES(start_date), end_date = VALUES(end_date), required_hours = VALUES(required_hours)');
+        $stmt->execute([$studentId, $companyId, $academicTerm, $termStartDate ?: null, $termEndDate ?: null, $startDate, $endDate, $requiredHours]);
         return (int)$this->db->lastInsertId();
     }
 
@@ -103,6 +103,47 @@ class Enrollment
         return (int)$stmt->fetchColumn();
     }
 
+    public function statusDistributionByCoordinator(int $coordinatorUserId): array
+    {
+        $stmt = $this->db->prepare('SELECT e.status label, COUNT(*) value FROM ojt_enrollments e JOIN students s ON s.id = e.student_id WHERE s.coordinator_id = ? GROUP BY e.status ORDER BY e.status');
+        $stmt->execute([$coordinatorUserId]);
+        return $stmt->fetchAll();
+    }
+
+    public function completionRatesByCourseByCoordinator(int $coordinatorUserId): array
+    {
+        $stmt = $this->db->prepare('
+            SELECT
+                s.course AS label,
+                COUNT(e.id) AS total,
+                ROUND(
+                    AVG(
+                        LEAST(
+                            COALESCE(
+                                (SELECT SUM(d.hours) FROM daily_time_records d WHERE d.student_id = e.student_id),
+                                0
+                            ) / NULLIF(e.required_hours, 0) * 100,
+                            100
+                        )
+                    ), 2
+                ) AS value
+            FROM ojt_enrollments e
+            JOIN students s ON s.id = e.student_id
+            WHERE s.coordinator_id = ?
+            GROUP BY s.course
+            ORDER BY s.course
+        ');
+        $stmt->execute([$coordinatorUserId]);
+        return $stmt->fetchAll();
+    }
+
+    public function monthlyEnrollmentTrendsByCoordinator(int $coordinatorUserId): array
+    {
+        $stmt = $this->db->prepare('SELECT DATE_FORMAT(e.created_at, "%Y-%m") label, COUNT(*) value FROM ojt_enrollments e JOIN students s ON s.id = e.student_id WHERE s.coordinator_id = ? GROUP BY DATE_FORMAT(e.created_at, "%Y-%m") ORDER BY label');
+        $stmt->execute([$coordinatorUserId]);
+        return $stmt->fetchAll();
+    }
+
     public function detailsByStudent(int $studentId): ?array
     {
         $stmt = $this->db->prepare('SELECT e.*, pc.name company_name, pc.address company_address, pc.contact_person, pc.contact_email FROM ojt_enrollments e JOIN partner_companies pc ON pc.id = e.company_id WHERE e.student_id = ?');
@@ -112,15 +153,45 @@ class Enrollment
 
     public function deployedByCompany(int $companyId): array
     {
-        $stmt = $this->db->prepare('SELECT e.*, s.student_no, s.course, s.year_level, u.name student_name, u.email student_email FROM ojt_enrollments e JOIN students s ON s.id = e.student_id JOIN users u ON u.id = s.user_id WHERE e.company_id = ? ORDER BY e.start_date DESC');
+        $stmt = $this->db->prepare('SELECT e.*, s.student_no, s.course, s.year_level, u.name student_name, u.email student_email FROM ojt_enrollments e JOIN students s ON s.id = e.student_id JOIN users u ON u.id = s.user_id WHERE e.company_id = ? AND e.predeployment_status IN ("forwarded","accepted","orientation_scheduled","orientation_completed") ORDER BY COALESCE(e.forwarded_at, e.created_at) DESC');
         $stmt->execute([$companyId]);
         return $stmt->fetchAll();
     }
 
     public function find(int $id): ?array
     {
-        $stmt = $this->db->prepare('SELECT e.*, s.student_no, s.course, s.year_level, u.name student_name, u.email student_email FROM ojt_enrollments e JOIN students s ON s.id = e.student_id JOIN users u ON u.id = s.user_id WHERE e.id = ?');
+        $stmt = $this->db->prepare('SELECT e.*, s.student_no, s.course, s.year_level, s.cor_file, u.name student_name, u.email student_email FROM ojt_enrollments e JOIN students s ON s.id = e.student_id JOIN users u ON u.id = s.user_id WHERE e.id = ?');
         $stmt->execute([$id]);
         return $stmt->fetch() ?: null;
+    }
+
+    public function setPredeploymentStatus(int $studentId, string $status): void
+    {
+        $stmt = $this->db->prepare('UPDATE ojt_enrollments SET predeployment_status = ? WHERE student_id = ?');
+        $stmt->execute([$status, $studentId]);
+    }
+
+    public function approveAndForward(int $enrollmentId, string $endorsementFile): void
+    {
+        $stmt = $this->db->prepare('UPDATE ojt_enrollments SET predeployment_status = "forwarded", endorsement_file = ?, forwarded_at = NOW() WHERE id = ?');
+        $stmt->execute([$endorsementFile, $enrollmentId]);
+    }
+
+    public function acceptDeployment(int $enrollmentId): void
+    {
+        $stmt = $this->db->prepare('UPDATE ojt_enrollments SET predeployment_status = "accepted", accepted_at = NOW() WHERE id = ?');
+        $stmt->execute([$enrollmentId]);
+    }
+
+    public function scheduleOrientation(int $enrollmentId, string $dateTime, string $notes): void
+    {
+        $stmt = $this->db->prepare('UPDATE ojt_enrollments SET predeployment_status = "orientation_scheduled", orientation_datetime = ?, orientation_notes = ? WHERE id = ?');
+        $stmt->execute([$dateTime, $notes, $enrollmentId]);
+    }
+
+    public function completeOrientation(int $enrollmentId, string $officialStart, string $projectedEnd): void
+    {
+        $stmt = $this->db->prepare('UPDATE ojt_enrollments SET predeployment_status = "orientation_completed", status = "active", official_start_date = ?, projected_end_date = ?, start_date = ?, end_date = ? WHERE id = ?');
+        $stmt->execute([$officialStart, $projectedEnd, $officialStart, $projectedEnd, $enrollmentId]);
     }
 }

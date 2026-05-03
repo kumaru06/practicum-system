@@ -3,7 +3,7 @@ class StudentController extends BaseController
 {
     public function changePasswordForm(): void
     {
-        require_role('student');
+        require_role(['student', 'coordinator', 'partner']);
         $this->render('student/change_password', [
             'title' => 'Change Temporary Password',
         ]);
@@ -11,7 +11,7 @@ class StudentController extends BaseController
 
     public function changePassword(): void
     {
-        require_role('student');
+        require_role(['student', 'coordinator', 'partner']);
         $p = $this->post();
         $password = (string)($p['password'] ?? '');
         $confirm = (string)($p['confirm_password'] ?? '');
@@ -25,8 +25,8 @@ class StudentController extends BaseController
         }
         (new User($this->db))->updatePassword((int)current_user()['id'], $password, 1);
         $_SESSION['user']['password_changed'] = 1;
-        flash('success', 'Password changed successfully. You can now access your student portal.');
-        redirect('index.php?r=student');
+        flash('success', 'Password changed successfully. You can now access your dashboard.');
+        redirect('index.php?r=' . current_user()['role']);
     }
 
     public function dashboard(): void
@@ -43,7 +43,74 @@ class StudentController extends BaseController
             'dtrs' => $student ? $reports->dtrByStudent((int)$student['id']) : [],
             'weeklyReports' => $student ? $reports->weeklyByStudent((int)$student['id']) : [],
             'hours' => $hours,
+            'requirements' => $student ? (new Student($this->db))->requirements((int)$student['id']) : [],
         ]);
+    }
+
+    public function profileForm(): void
+    {
+        require_role('student');
+        $student = (new Student($this->db))->findByUser(current_user()['id']);
+        $this->render('student/profile', [
+            'title' => 'Complete Student Profile',
+            'student' => $student,
+        ]);
+    }
+
+    public function saveProfile(): void
+    {
+        require_role('student');
+        $p = $this->post();
+        $student = (new Student($this->db))->findByUser(current_user()['id']);
+        if (!$student) {
+            flash('error', 'Student record not found.');
+            redirect('index.php');
+        }
+        try {
+            $photo = null;
+            if (!empty($_FILES['photo_file']['name'])) {
+                $photo = upload_document($_FILES['photo_file'], 'profiles', false);
+            }
+            (new Student($this->db))->updateProfile((int)$student['id'], $p, $photo);
+            flash('success', 'Profile completed. Your dashboard is now unlocked.');
+            redirect('index.php?r=student');
+        } catch (Throwable $e) {
+            flash('error', $e->getMessage());
+            redirect('index.php?r=student_profile');
+        }
+    }
+
+    public function uploadRequirement(): void
+    {
+        require_role('student');
+        $p = $this->post();
+        $student = (new Student($this->db))->findByUser(current_user()['id']);
+        if (!$student) {
+            flash('error', 'Student record not found.');
+            redirect('index.php?r=student');
+        }
+        try {
+            $path = upload_document($_FILES['requirement_file'] ?? [], 'requirements/' . (int)$student['id']);
+            (new Student($this->db))->saveRequirement((int)$student['id'], trim($p['requirement_key']), $path);
+            flash('success', 'Requirement uploaded.');
+        } catch (Throwable $e) {
+            flash('error', $e->getMessage());
+        }
+        redirect('index.php?r=student');
+    }
+
+    public function submitRequirements(): void
+    {
+        require_role('student');
+        $studentModel = new Student($this->db);
+        $student = $studentModel->findByUser(current_user()['id']);
+        if (!$student || !$studentModel->hasCompleteRequirements((int)$student['id'])) {
+            flash('error', 'Upload all five requirements before submitting for review.');
+            redirect('index.php?r=student');
+        }
+        (new Enrollment($this->db))->setPredeploymentStatus((int)$student['id'], 'submitted');
+        flash('success', 'Pre-deployment requirements submitted for coordinator review.');
+        redirect('index.php?r=student');
     }
 
     public function addDtr(): void

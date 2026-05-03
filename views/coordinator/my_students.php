@@ -14,12 +14,24 @@
                 </article>
             <?php endforeach; ?>
         </div>
-        <div class="table-wrap"><table class="data-table"><thead><tr><th data-sort>Name</th><th data-sort>Student No.</th><th>Details</th></tr></thead><tbody>
+        <div class="table-wrap"><table class="data-table"><thead><tr><th data-sort>Name</th><th data-sort>Student No.</th><th>Pre-Deployment</th><th>Details</th></tr></thead><tbody>
             <?php foreach ($students as $s): ?>
                 <?php $required = (float)($s['required_hours'] ?? 0); $rendered = (float)($s['rendered_hours'] ?? 0); $percent = $required > 0 ? min(100, round(($rendered / $required) * 100)) : 0; ?>
                 <tr>
                     <td><?= e($s['name']) ?><br><small><?= e($s['email']) ?></small></td>
                     <td><?= e($s['student_no']) ?></td>
+                    <td>
+                        <span class="badge <?= e($s['predeployment_status'] ?? 'not_submitted') ?>"><?= e(str_replace('_', ' ', $s['predeployment_status'] ?? 'not_submitted')) ?></span>
+                        <?php if (($s['predeployment_status'] ?? '') === 'submitted' && !empty($s['enrollment_id'])): ?>
+                            <form method="post" enctype="multipart/form-data" class="form" style="margin-top:8px">
+                                <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                                <input type="hidden" name="action" value="coordinator_forward_deployment">
+                                <input type="hidden" name="enrollment_id" value="<?= (int)$s['enrollment_id'] ?>">
+                                <label>Endorsement Letter<input required type="file" name="endorsement_file" accept=".pdf,.jpg,.jpeg,.png"></label>
+                                <button class="btn btn-small" type="submit">Approve & Forward</button>
+                            </form>
+                        <?php endif; ?>
+                    </td>
                     <td><button class="btn btn-small student-view-btn"
                             data-name="<?= e($s['name']) ?>"
                             data-email="<?= e($s['email']) ?>"

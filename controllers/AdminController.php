@@ -40,6 +40,16 @@ class AdminController extends BaseController
         $this->render('admin/partners', [
             'title' => 'Partner Companies',
             'partners' => (new Company($this->db))->all(),
+            'programs' => (new Program($this->db))->all(true),
+        ]);
+    }
+
+    public function managePrograms(): void
+    {
+        require_role('admin');
+        $this->render('admin/programs', [
+            'title' => 'Programs / Courses',
+            'programs' => (new Program($this->db))->all(),
         ]);
     }
 
@@ -82,12 +92,22 @@ class AdminController extends BaseController
         require_role('admin');
         $p = $this->post();
         try {
-            $userId = (new User($this->db))->create(trim($p['name']), trim($p['email']), $p['password'], 'coordinator', current_user()['id']);
+            $password = random_password();
+            $userId = (new User($this->db))->create(trim($p['name']), trim($p['email']), $password, 'coordinator', current_user()['id'], 0);
             $stmt = $this->db->prepare('INSERT INTO coordinators (user_id, department) VALUES (?, ?)');
-            $stmt->execute([$userId, 'OJT Department']);
-            flash('success', 'Coordinator account created.');
+            $stmt->execute([$userId, trim($p['department'] ?? 'OJT Department') ?: 'OJT Department']);
+            (new Email($this->db))->send(trim($p['email']), 'Your AMA Practicum Coordinator Account', 'account_credentials', 'account_credentials', [
+                'name' => trim($p['name']),
+                'email' => trim($p['email']),
+                'password' => $password,
+                'roleLabel' => 'OJT Coordinator',
+            ]);
+            flash('success', 'Coordinator account created and credentials email was processed.');
         } catch (Throwable $e) {
-            flash('error', $e->getMessage());
+            $msg = str_contains($e->getMessage(), '1062') || str_contains($e->getMessage(), 'Duplicate entry')
+                ? 'Email already exists.'
+                : $e->getMessage();
+            flash('error', $msg);
         }
         redirect('index.php?r=admin_coordinators');
     }
@@ -97,14 +117,56 @@ class AdminController extends BaseController
         require_role('admin');
         $p = $this->post();
         try {
-            $password = $p['password'] ?: random_password();
-            $userId = (new User($this->db))->create(trim($p['company_name']), trim($p['contact_email']), $password, 'partner', current_user()['id']);
-            (new Company($this->db))->create($userId, trim($p['company_name']), trim($p['address']), trim($p['contact_person']), trim($p['contact_email']));
-            flash('success', 'Partner company account created. Temporary password: ' . $password);
+            $password = random_password();
+            $programIds = $p['program_ids'] ?? [];
+            if (!$programIds) {
+                throw new RuntimeException('Select at least one accepted program/course.');
+            }
+            $userId = (new User($this->db))->create(trim($p['company_name']), trim($p['contact_email']), $password, 'partner', current_user()['id'], 0);
+            (new Company($this->db))->create($userId, trim($p['company_name']), trim($p['address'] ?? ''), trim($p['contact_person']), trim($p['contact_email']), trim($p['contact_number'] ?? ''), $programIds);
+            (new Email($this->db))->send(trim($p['contact_email']), 'Your AMA Practicum Partner Account', 'account_credentials', 'account_credentials', [
+                'name' => trim($p['contact_person']),
+                'email' => trim($p['contact_email']),
+                'password' => $password,
+                'roleLabel' => 'Industry Partner',
+            ]);
+            flash('success', 'Partner company account created and credentials email was processed.');
         } catch (Throwable $e) {
             flash('error', $e->getMessage());
         }
         redirect('index.php?r=admin_partners');
+    }
+
+    public function saveProgram(): void
+    {
+        require_role('admin');
+        $p = $this->post();
+        try {
+            $programs = new Program($this->db);
+            if (!empty($p['program_id'])) {
+                $programs->update((int)$p['program_id'], trim($p['code']), trim($p['name']), (int)$p['required_hours'], (int)($p['is_active'] ?? 1));
+                flash('success', 'Program updated.');
+            } else {
+                $programs->create(trim($p['code']), trim($p['name']), (int)$p['required_hours']);
+                flash('success', 'Program created.');
+            }
+        } catch (Throwable $e) {
+            flash('error', $e->getMessage());
+        }
+        redirect('index.php?r=admin_programs');
+    }
+
+    public function deleteProgram(): void
+    {
+        require_role('admin');
+        $p = $this->post();
+        try {
+            (new Program($this->db))->delete((int)$p['program_id']);
+            flash('success', 'Program deleted.');
+        } catch (Throwable $e) {
+            flash('error', 'Program is already in use. Deactivate it instead.');
+        }
+        redirect('index.php?r=admin_programs');
     }
 
     public function toggleUser(): void
