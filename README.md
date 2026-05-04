@@ -1,31 +1,48 @@
-# AMA Computer College Practicum Management System
+# AMA Practicum / OJT Management System
 
-Pure PHP 8 + PDO MySQL OJT management system with four roles: Admin, OJT Coordinator, Student, and Partner Company.
+Laravel-native practicum management system for AMA Computer College. It supports admin, OJT coordinator, student, and partner company workflows.
 
-## Setup
+## Main Features
 
-1. Start Apache and MySQL in XAMPP.
-2. Import the database files in phpMyAdmin or MySQL CLI:
-   - `database/schema.sql`
-   - `database/seed.sql`
-   - If updating an existing database, run these after the original schema/seed instead:
-     - `database/migration_2026_05_02_features.sql`
-     - `database/migration_2026_05_03_deployment_flow.sql`
-3. Confirm database credentials in `config/database.php`.
-4. Configure real SMTP credentials in `config/mail.php`.
-   - Gmail requires an App Password.
-   - PHPMailer is installed through Composer in `vendor/`.
-5. Open: `http://localhost/practicum-system/auth.php`
+- Admin dashboard with enrollment statistics, charts, programs/courses, user status controls, evaluations, email logs, and company management.
+- OJT coordinator dashboard with student creation, student enrollment, requirement review, deployment forwarding, student password reset, and evaluations.
+- Student portal with forced temporary password change, profile completion, pre-deployment document uploads, daily time records, weekly narrative reports, and progress tracking.
+- Partner company portal with forced temporary password change, deployment acceptance, orientation email/scheduling/completion, DTR viewing, and final evaluation submission.
+- SMTP email delivery with an audit log for account credentials, student enrollment, company deployment, forwarded documents, orientation notices, password resets, and test messages.
+- Notification dropdown with unread counts and mark-all-as-read action.
 
-## Seed login
+## Local URL
 
-- Admin: `admin@ama.edu.ph` / `Admin@123`
+The app is configured for XAMPP subfolder deployment:
 
-## Notes
+`http://localhost/practicum-system`
 
-- COR uploads are validated as PDF/JPG/PNG and limited to 5MB.
-- Weekly report uploads are validated as PDF and limited to 5MB.
-- Email sending is real PHPMailer SMTP and every attempt is logged in `email_logs`.
-- Internal notifications are stored in `notifications` and shown in the top notification menu.
-- Student deployment emails can include forwarded requirement files and the coordinator endorsement letter as attachments.
-- All POST forms use CSRF tokens.
+## Environment Notes
+
+- Database: MySQL database named `practicum_system`.
+- Session/cache: file-based storage is used for XAMPP compatibility.
+- Mail: SMTP is configured in `.env`. If email is not received, check the Email Logs screen first.
+- Public uploads are stored under `public/uploads`.
+
+## Useful Commands
+
+Run from the project root:
+
+- `composer install`
+- `php artisan migrate`
+- `php artisan route:list`
+- `php artisan view:clear`
+- `php artisan cache:clear`
+
+Do not run destructive reset commands such as `migrate:fresh` on a live database unless you intentionally want to delete current records.
+
+## Default Access
+
+Use the existing seeded/admin account in the database. Temporary accounts for coordinators, students, and companies must change their password on first login.
+
+## Troubleshooting
+
+- If CSS or JavaScript looks old, hard-refresh the browser with `Ctrl+F5`.
+- If a user cannot enter a portal, confirm the account is active and whether `password_changed` is set to `0`; non-admin users are redirected to the password-change page until updated.
+- If company or coordinator emails are missing, use the resend/reset buttons and inspect Email Logs for the SMTP status.
+- If uploads fail, verify the file is PDF/JPG/PNG and below the configured size limit.
