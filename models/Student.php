@@ -12,7 +12,7 @@ class Student
 
     public function allByCoordinator(int $coordinatorUserId): array
     {
-        $stmt = $this->db->prepare('SELECT s.*, u.name, u.email, u.is_active, e.id enrollment_id, e.status deployment_status, e.predeployment_status, e.required_hours, COALESCE(SUM(d.hours), 0) rendered_hours, pc.name company_name FROM students s JOIN users u ON u.id = s.user_id LEFT JOIN ojt_enrollments e ON e.student_id = s.id LEFT JOIN daily_time_records d ON d.student_id = s.id LEFT JOIN partner_companies pc ON pc.id = e.company_id WHERE s.coordinator_id = ? GROUP BY s.id, u.id, e.id, pc.id ORDER BY u.name');
+        $stmt = $this->db->prepare('SELECT s.*, u.name, u.email, u.is_active, p.code program_code, p.required_hours program_required_hours, e.id enrollment_id, e.status deployment_status, e.predeployment_status, e.required_hours, COALESCE(SUM(d.hours), 0) rendered_hours, pc.name company_name FROM students s JOIN users u ON u.id = s.user_id LEFT JOIN programs p ON p.id = s.program_id LEFT JOIN ojt_enrollments e ON e.student_id = s.id LEFT JOIN daily_time_records d ON d.student_id = s.id LEFT JOIN partner_companies pc ON pc.id = e.company_id WHERE s.coordinator_id = ? GROUP BY s.id, u.id, p.id, e.id, pc.id ORDER BY u.name');
         $stmt->execute([$coordinatorUserId]);
         return $stmt->fetchAll();
     }
@@ -84,6 +84,7 @@ class Student
             if (!isset($rows[$key])) {
                 $rows[$key] = ['requirement_key' => $key, 'requirement_name' => $def['name'], 'notes' => $def['notes'], 'file_path' => null, 'status' => 'pending'];
             } else {
+                $rows[$key]['review_notes'] = $rows[$key]['notes'] ?? '';
                 $rows[$key]['notes'] = $def['notes'];
             }
         }
@@ -100,6 +101,22 @@ class Student
         $stmt->execute([$studentId, $key, $defs[$key]['name'], $filePath]);
     }
 
+    public function reviewRequirement(int $studentId, string $key, string $status, string $notes = ''): void
+    {
+        if (!in_array($status, ['approved', 'rejected'], true)) {
+            throw new RuntimeException('Invalid review status.');
+        }
+        $defs = $this->requirementDefinitions();
+        if (!isset($defs[$key])) {
+            throw new RuntimeException('Invalid requirement.');
+        }
+        $stmt = $this->db->prepare('UPDATE student_requirements SET status = ?, notes = ?, reviewed_at = NOW() WHERE student_id = ? AND requirement_key = ? AND file_path IS NOT NULL');
+        $stmt->execute([$status, $notes, $studentId, $key]);
+        if ($stmt->rowCount() === 0) {
+            throw new RuntimeException('Requirement file is not available for review.');
+        }
+    }
+
     public function hasCompleteRequirements(int $studentId): bool
     {
         foreach ($this->requirements($studentId) as $req) {
@@ -108,5 +125,20 @@ class Student
             }
         }
         return true;
+    }
+
+    public function hasApprovedRequirements(int $studentId): bool
+    {
+        foreach ($this->requirements($studentId) as $req) {
+            if (empty($req['file_path']) || ($req['status'] ?? '') !== 'approved') {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public function requirementFilePaths(int $studentId): array
+    {
+        return array_values(array_filter(array_map(static fn ($req) => $req['file_path'] ?? null, $this->requirements($studentId))));
     }
 }

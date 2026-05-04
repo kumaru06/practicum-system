@@ -143,3 +143,20 @@ function upload_document(array $file, string $folder = 'documents', bool $requir
     }
     return 'uploads/' . $safeFolder . '/' . $name;
 }
+
+function projected_ojt_end_date(string $startDate, int $requiredHours, int $hoursPerDay = 8): string
+{
+    $daysNeeded = max(1, (int)ceil($requiredHours / max(1, $hoursPerDay)));
+    $date = new DateTimeImmutable($startDate);
+    $workedDays = 0;
+    while ($workedDays < $daysNeeded) {
+        $weekday = (int)$date->format('N');
+        if ($weekday <= 5) {
+            $workedDays++;
+        }
+        if ($workedDays < $daysNeeded) {
+            $date = $date->modify('+1 day');
+        }
+    }
+    return $date->format('Y-m-d');
+}

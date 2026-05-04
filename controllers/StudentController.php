@@ -109,6 +109,7 @@ class StudentController extends BaseController
             redirect('index.php?r=student');
         }
         (new Enrollment($this->db))->setPredeploymentStatus((int)$student['id'], 'submitted');
+        (new Notification($this->db))->create((int)$student['coordinator_id'], 'Pre-deployment review requested', $student['name'] . ' submitted all pre-deployment requirements for review.', 'index.php?r=coordinator_students');
         flash('success', 'Pre-deployment requirements submitted for coordinator review.');
         redirect('index.php?r=student');
     }

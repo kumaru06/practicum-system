@@ -6,7 +6,7 @@ class Email
 {
     public function __construct(private PDO $db) {}
 
-    public function send(string $recipient, string $subject, string $type, string $template, array $data): bool
+    public function send(string $recipient, string $subject, string $type, string $template, array $data, array $attachments = []): bool
     {
         $status = 'failed';
         $error = null;
@@ -29,6 +29,14 @@ class Email
             $mail->Subject = $subject;
             $mail->Body = $body;
             $mail->AltBody = trim(strip_tags(str_replace(['<br>', '<br/>', '<br />'], "\n", $body)));
+            foreach ($attachments as $attachment) {
+                $path = is_array($attachment) ? ($attachment['path'] ?? '') : (string)$attachment;
+                $name = is_array($attachment) ? ($attachment['name'] ?? '') : '';
+                $fullPath = str_starts_with($path, __DIR__) ? $path : dirname(__DIR__) . '/' . ltrim($path, '/\\');
+                if ($path && is_file($fullPath)) {
+                    $mail->addAttachment($fullPath, $name ?: basename($fullPath));
+                }
+            }
             $mail->send();
             $status = 'sent';
             return true;

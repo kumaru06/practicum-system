@@ -119,13 +119,25 @@ class AdminController extends BaseController
         try {
             $password = random_password();
             $programIds = $p['program_ids'] ?? [];
+            $contactPerson = trim($p['contact_person'] ?? $p['name'] ?? '');
+            $contactNumberDigits = preg_replace('/\D+/', '', (string)($p['contact_number'] ?? ''));
+            if (str_starts_with($contactNumberDigits, '63')) {
+                $contactNumberDigits = substr($contactNumberDigits, 2);
+            }
+            if (str_starts_with($contactNumberDigits, '0')) {
+                $contactNumberDigits = substr($contactNumberDigits, 1);
+            }
+            if (!preg_match('/^9\d{9}$/', $contactNumberDigits)) {
+                throw new RuntimeException('Contact number must be a valid Philippine mobile number.');
+            }
+            $contactNumber = '+63 ' . substr($contactNumberDigits, 0, 3) . ' ' . substr($contactNumberDigits, 3, 3) . ' ' . substr($contactNumberDigits, 6, 4);
             if (!$programIds) {
                 throw new RuntimeException('Select at least one accepted program/course.');
             }
             $userId = (new User($this->db))->create(trim($p['company_name']), trim($p['contact_email']), $password, 'partner', current_user()['id'], 0);
-            (new Company($this->db))->create($userId, trim($p['company_name']), trim($p['address'] ?? ''), trim($p['contact_person']), trim($p['contact_email']), trim($p['contact_number'] ?? ''), $programIds);
+            (new Company($this->db))->create($userId, trim($p['company_name']), trim($p['address'] ?? ''), $contactPerson, trim($p['contact_email']), $contactNumber, $programIds);
             (new Email($this->db))->send(trim($p['contact_email']), 'Your AMA Practicum Partner Account', 'account_credentials', 'account_credentials', [
-                'name' => trim($p['contact_person']),
+                'name' => $contactPerson,
                 'email' => trim($p['contact_email']),
                 'password' => $password,
                 'roleLabel' => 'Industry Partner',

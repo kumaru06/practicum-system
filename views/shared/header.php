@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="assets/css/style.css?v=20260504-notif3">
 </head>
 <body class="app-page role-<?= e($user['role'] ?? 'guest') ?>">
 <div class="app-shell">
@@ -57,8 +57,52 @@
     <main class="main">
         <header class="topbar">
             <div class="topbar-copy"><h1><?= e($title ?? 'Dashboard') ?></h1><span><?= e(ucwords(str_replace('_', ' ', $user['role'] ?? ''))) ?></span></div>
-            <div class="top-actions"><div class="user-chip"><span class="user-avatar"><?= e(strtoupper(substr($user['name'] ?? 'A', 0, 1))) ?></span><div><strong><?= e($user['name'] ?? '') ?></strong><small><?= e($user['email'] ?? '') ?></small></div></div></div>
+            <div class="top-actions">
+                <div class="notification-menu" id="notifMenu">
+                    <button class="notif-trigger" id="notifBtn" type="button" aria-label="Notifications" aria-controls="notifPanel" aria-expanded="false">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                        <?php if (($unreadNotifications ?? 0) > 0): ?><span class="notif-badge"><?= (int)$unreadNotifications ?></span><?php endif; ?>
+                    </button>
+                </div>
+                <div class="user-chip"><span class="user-avatar"><?= e(strtoupper(substr($user['name'] ?? 'A', 0, 1))) ?></span><div><strong><?= e($user['name'] ?? '') ?></strong><small><?= e($user['email'] ?? '') ?></small></div></div>
+            </div>
         </header>
+        <div class="notif-panel" id="notifPanel" role="dialog" aria-label="Notifications" hidden>
+            <div class="notif-panel-header">
+                <span class="notif-panel-title">Notifications</span>
+                <span class="notif-panel-gear" title="Notification settings">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
+                </span>
+            </div>
+            <?php if (empty($notifications ?? [])): ?>
+                <div class="notif-empty">
+                    <div class="notif-empty-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                    </div>
+                    <p>You're all caught up!</p>
+                    <small>No new notifications.</small>
+                </div>
+            <?php else: ?>
+                <div class="notif-list">
+                    <?php foreach ($notifications as $note): ?>
+                        <?php $isUnread = (int)$note['is_read'] === 0; ?>
+                        <?php $initials = strtoupper(substr(strip_tags($note['title']), 0, 1)); ?>
+                        <a class="notif-item<?= $isUnread ? ' is-unread' : '' ?>" href="<?= e($note['link'] ?: '#') ?>">
+                            <div class="notif-avatar" aria-hidden="true"><?= e($initials) ?></div>
+                            <div class="notif-body">
+                                <span class="notif-title"><?= e($note['title']) ?></span>
+                                <span class="notif-msg"><?= e($note['message']) ?></span>
+                                <time class="notif-time"><?= e($note['created_at']) ?></time>
+                            </div>
+                            <?php if ($isUnread): ?><span class="notif-dot" aria-label="Unread"></span><?php endif; ?>
+                        </a>
+                    <?php endforeach; ?>
+                </div>
+                <div class="notif-footer">
+                    <a href="?action=mark_all_notifications_read" class="notif-mark-all">Mark all as read</a>
+                </div>
+            <?php endif; ?>
+        </div>
         <section class="content">
             <div class="toast-stack" aria-live="polite">
                 <?php if ($m = flash('success')): ?><div class="toast success"><?= e($m) ?></div><?php endif; ?>

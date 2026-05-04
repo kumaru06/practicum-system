@@ -8,22 +8,24 @@ Pure PHP 8 + PDO MySQL OJT management system with four roles: Admin, OJT Coordin
 2. Import the database files in phpMyAdmin or MySQL CLI:
    - `database/schema.sql`
    - `database/seed.sql`
+   - If updating an existing database, run these after the original schema/seed instead:
+     - `database/migration_2026_05_02_features.sql`
+     - `database/migration_2026_05_03_deployment_flow.sql`
 3. Confirm database credentials in `config/database.php`.
 4. Configure real SMTP credentials in `config/mail.php`.
    - Gmail requires an App Password.
    - PHPMailer is installed through Composer in `vendor/`.
 5. Open: `http://localhost/practicum-system/auth.php`
 
-## Seed logins
+## Seed login
 
 - Admin: `admin@ama.edu.ph` / `Admin@123`
-- Coordinator: `coordinator@ama.edu.ph` / `Coord@123`
-- Partner: `partner@example.com` / `Company@123`
-- Students: `juan.student@example.com` or `ana.student@example.com` / `Student@123`
 
 ## Notes
 
 - COR uploads are validated as PDF/JPG/PNG and limited to 5MB.
 - Weekly report uploads are validated as PDF and limited to 5MB.
 - Email sending is real PHPMailer SMTP and every attempt is logged in `email_logs`.
+- Internal notifications are stored in `notifications` and shown in the top notification menu.
+- Student deployment emails can include forwarded requirement files and the coordinator endorsement letter as attachments.
 - All POST forms use CSRF tokens.

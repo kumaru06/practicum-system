@@ -38,9 +38,16 @@ class CoordinatorController extends BaseController
     public function myStudents(): void
     {
         require_role('coordinator');
+        $students = (new Student($this->db))->allByCoordinator(current_user()['id']);
+        $studentModel = new Student($this->db);
+        $requirementsByStudent = [];
+        foreach ($students as $student) {
+            $requirementsByStudent[(int)$student['id']] = $studentModel->requirements((int)$student['id']);
+        }
         $this->render('coordinator/my_students', [
             'title' => 'My Students',
-            'students' => (new Student($this->db))->allByCoordinator(current_user()['id']),
+            'students' => $students,
+            'requirementsByStudent' => $requirementsByStudent,
             'evaluations' => (new Evaluation($this->db))->byCoordinator(current_user()['id']),
         ]);
     }
@@ -85,7 +92,15 @@ class CoordinatorController extends BaseController
             if (!$student || (int)$student['coordinator_id'] !== current_user()['id']) {
                 throw new RuntimeException('Student does not belong to your coordination.');
             }
-            (new Enrollment($this->db))->create($studentId, $companyId, $p['start_date'], $p['end_date'], (int)$p['required_hours'], trim($p['academic_term'] ?? ''), $p['term_start_date'] ?? '', $p['term_end_date'] ?? '');
+            $program = !empty($student['program_id']) ? (new Program($this->db))->find((int)$student['program_id']) : null;
+            if (!$program) {
+                throw new RuntimeException('Student has no valid program/course assigned.');
+            }
+            if (!(new Company($this->db))->acceptsProgram($companyId, (int)$program['id'])) {
+                throw new RuntimeException('Selected partner company does not accept the student\'s program/course.');
+            }
+            $requiredHours = (int)$program['required_hours'];
+            (new Enrollment($this->db))->create($studentId, $companyId, $p['start_date'], $p['end_date'], $requiredHours, trim($p['academic_term'] ?? ''), $p['term_start_date'] ?? '', $p['term_end_date'] ?? '');
             $company = (new Company($this->db))->find($companyId);
             $tempPassword = random_password();
             (new User($this->db))->updatePassword((int)$student['user_id'], $tempPassword, 0);
@@ -98,7 +113,7 @@ class CoordinatorController extends BaseController
                 'academicTerm' => trim($p['academic_term'] ?? ''),
                 'termStartDate' => $p['term_start_date'] ?? '',
                 'termEndDate' => $p['term_end_date'] ?? '',
-                'requiredHours' => (int)$p['required_hours'],
+                'requiredHours' => $requiredHours,
                 'password' => $tempPassword,
                 'coordinator' => current_user(),
             ]);
@@ -107,7 +122,7 @@ class CoordinatorController extends BaseController
                 'company' => $company,
                 'startDate' => $p['start_date'],
                 'endDate' => $p['end_date'],
-                'requiredHours' => (int)$p['required_hours'],
+                'requiredHours' => $requiredHours,
                 'coordinator' => current_user(),
             ]);
             flash('success', 'Student enrolled and deployment emails were processed. Check email logs for status.');
@@ -115,6 +130,34 @@ class CoordinatorController extends BaseController
             flash('error', $e->getMessage());
         }
         redirect('index.php?r=coordinator');
+    }
+
+    public function reviewRequirement(): void
+    {
+        require_role('coordinator');
+        $p = $this->post();
+        try {
+            $studentId = (int)$p['student_id'];
+            $studentModel = new Student($this->db);
+            $student = $studentModel->find($studentId);
+            if (!$student || (int)$student['coordinator_id'] !== (int)current_user()['id']) {
+                throw new RuntimeException('Student does not belong to your coordination.');
+            }
+            $status = trim($p['status'] ?? '');
+            $studentModel->reviewRequirement($studentId, trim($p['requirement_key'] ?? ''), $status, trim($p['notes'] ?? ''));
+            $enrollmentModel = new Enrollment($this->db);
+            if ($status === 'rejected') {
+                $enrollmentModel->setPredeploymentStatus($studentId, 'not_submitted');
+                (new Notification($this->db))->create((int)$student['user_id'], 'Requirement needs revision', 'One of your pre-deployment requirements was rejected. Please upload a corrected file.', 'index.php?r=student');
+            } elseif ($studentModel->hasApprovedRequirements($studentId)) {
+                $enrollmentModel->setPredeploymentStatus($studentId, 'approved');
+                (new Notification($this->db))->create((int)$student['user_id'], 'Requirements approved', 'All of your pre-deployment requirements have been approved by your coordinator.', 'index.php?r=student');
+            }
+            flash('success', 'Requirement review saved.');
+        } catch (Throwable $e) {
+            flash('error', $e->getMessage());
+        }
+        redirect('index.php?r=coordinator_students');
     }
 
     public function forwardDeployment(): void
@@ -130,10 +173,16 @@ class CoordinatorController extends BaseController
             if (!$student || (int)$student['coordinator_id'] !== (int)current_user()['id']) {
                 throw new RuntimeException('Student does not belong to your coordination.');
             }
+            $studentModel = new Student($this->db);
+            if (!$studentModel->hasApprovedRequirements((int)$student['id'])) {
+                throw new RuntimeException('Approve all five requirements before forwarding deployment documents.');
+            }
             $endorsement = upload_document($_FILES['endorsement_file'] ?? [], 'endorsements');
             (new Enrollment($this->db))->approveAndForward((int)$enrollment['id'], $endorsement);
             $company = (new Company($this->db))->find((int)$enrollment['company_id']);
             if ($company) {
+                $attachments = array_map(static fn ($path) => ['path' => $path], $studentModel->requirementFilePaths((int)$student['id']));
+                $attachments[] = ['path' => $endorsement, 'name' => 'Endorsement Letter.' . pathinfo($endorsement, PATHINFO_EXTENSION)];
                 (new Email($this->db))->send($company['contact_email'], 'Student Deployment Documents Forwarded', 'deployment_forwarded', 'company_deployment', [
                     'student' => $student,
                     'company' => $company,
@@ -141,7 +190,8 @@ class CoordinatorController extends BaseController
                     'endDate' => $enrollment['end_date'],
                     'requiredHours' => (int)$enrollment['required_hours'],
                     'coordinator' => current_user(),
-                ]);
+                ], $attachments);
+                (new Notification($this->db))->create((int)$company['user_id'], 'Student deployment forwarded', $student['name'] . ' has been forwarded to your company for review.', 'index.php?r=partner&enrollment=' . (int)$enrollment['id']);
             }
             flash('success', 'Documents approved and forwarded to partner company.');
         } catch (Throwable $e) {

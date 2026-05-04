@@ -68,14 +68,14 @@ $totalPrograms = count($programs);
                     <p>Basic identity and contact details.</p>
                 </div>
                 <div class="partner-form-fields">
-                    <label>Company Name<input form="create-partner-form" required name="company_name" placeholder="Factory Reset Inc."></label>
-                    <label>Contact Person<input form="create-partner-form" required name="contact_person" placeholder="Juan Dela Cruz"></label>
-                    <label>Email Address<input form="create-partner-form" required type="email" name="contact_email" placeholder="partner@company.com"></label>
-                    <label>Contact Number<input form="create-partner-form" required name="contact_number" placeholder="0912 345 6789"></label>
+                    <label>Company Name<input form="create-partner-form" required name="company_name"></label>
+                    <label>Name<input form="create-partner-form" required name="contact_person" autocomplete="name"></label>
+                    <label>Email Address<input form="create-partner-form" required type="email" name="contact_email"></label>
+                    <label>Contact Number<input form="create-partner-form" required name="contact_number" inputmode="numeric" autocomplete="tel-national" maxlength="16" data-phone-format="ph" pattern="\+63\s9\d{2}\s\d{3}\s\d{4}" title="Use format +63 951 192 5735"></label>
                 </div>
                 <label style="display:flex;flex-direction:column;gap:5px;font-size:0.8rem;font-weight:600;color:#374151;">
                     Company Address
-                    <textarea form="create-partner-form" required name="address" placeholder="Enter the complete company address" style="padding:8px 11px;border:1px solid #e0e0e8;border-radius:8px;font-size:0.84rem;color:#111827;background:#fafafa;outline:none;font-family:inherit;resize:vertical;min-height:72px;"></textarea>
+                    <textarea form="create-partner-form" required name="address" style="padding:8px 11px;border:1px solid #e0e0e8;border-radius:8px;font-size:0.84rem;color:#111827;background:#fafafa;outline:none;font-family:inherit;resize:vertical;min-height:72px;"></textarea>
                 </label>
             </div>
 

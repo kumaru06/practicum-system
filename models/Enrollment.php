@@ -171,6 +171,19 @@ class Enrollment
         $stmt->execute([$status, $studentId]);
     }
 
+    public function setPredeploymentStatusByEnrollment(int $enrollmentId, string $status): void
+    {
+        $stmt = $this->db->prepare('UPDATE ojt_enrollments SET predeployment_status = ? WHERE id = ?');
+        $stmt->execute([$status, $enrollmentId]);
+    }
+
+    public function byStudent(int $studentId): ?array
+    {
+        $stmt = $this->db->prepare('SELECT * FROM ojt_enrollments WHERE student_id = ? LIMIT 1');
+        $stmt->execute([$studentId]);
+        return $stmt->fetch() ?: null;
+    }
+
     public function approveAndForward(int $enrollmentId, string $endorsementFile): void
     {
         $stmt = $this->db->prepare('UPDATE ojt_enrollments SET predeployment_status = "forwarded", endorsement_file = ?, forwarded_at = NOW() WHERE id = ?');

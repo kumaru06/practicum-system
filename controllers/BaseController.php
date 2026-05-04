@@ -12,6 +12,18 @@ abstract class BaseController
     {
         extract($data, EXTR_SKIP);
         $user = current_user();
+        $notifications = [];
+        $unreadNotifications = 0;
+        if ($user) {
+            try {
+                $notificationModel = new Notification($this->db);
+                $notifications = $notificationModel->recentForUser((int)$user['id']);
+                $unreadNotifications = $notificationModel->unreadCount((int)$user['id']);
+            } catch (Throwable) {
+                $notifications = [];
+                $unreadNotifications = 0;
+            }
+        }
         require __DIR__ . '/../views/shared/header.php';
         require __DIR__ . '/../views/' . $view . '.php';
         require __DIR__ . '/../views/shared/footer.php';

@@ -25,6 +25,15 @@ CREATE TABLE IF NOT EXISTS company_programs (
   CONSTRAINT fk_company_program_program FOREIGN KEY (program_id) REFERENCES programs(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+INSERT INTO company_programs (company_id, program_id)
+SELECT pc.id, p.id
+FROM partner_companies pc
+JOIN programs p
+WHERE NOT EXISTS (
+  SELECT 1 FROM company_programs existing WHERE existing.company_id = pc.id
+)
+ON DUPLICATE KEY UPDATE company_id = VALUES(company_id);
+
 ALTER TABLE partner_companies
   ADD COLUMN IF NOT EXISTS contact_number VARCHAR(60) NULL AFTER contact_email;
 
@@ -67,7 +76,19 @@ CREATE TABLE IF NOT EXISTS student_requirements (
   CONSTRAINT fk_requirements_student FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS notifications (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  title VARCHAR(160) NOT NULL,
+  message TEXT NOT NULL,
+  link VARCHAR(255) NULL,
+  is_read TINYINT(1) NOT NULL DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_notifications_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
 UPDATE students s
-LEFT JOIN programs p ON p.name = s.course OR p.code = s.course
-SET s.program_id = p.id
-WHERE s.program_id IS NULL AND p.id IS NOT NULL;
+LEFT JOIN programs p ON p.name = s.course OR p.code = s.course OR (s.course LIKE '%Information Technology%' AND p.code = 'BSIT') OR (s.course LIKE '%Computer Science%' AND p.code = 'BSCS') OR (s.course LIKE '%Business Administration%' AND p.code = 'BSBA') OR (s.course LIKE '%Computer Engineering%' AND p.code = 'BSCOE')
+SET s.program_id = p.id,
+    s.course = p.name
+WHERE p.id IS NOT NULL;

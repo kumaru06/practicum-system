@@ -20,6 +20,13 @@
 	<section class="card">
 		<h2>Orientation & OJT Start</h2>
 		<?php if (in_array($selected['predeployment_status'], ['accepted','orientation_scheduled'], true)): ?>
+			<form method="post" class="form js-validate" style="margin-bottom:18px">
+				<input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+				<input type="hidden" name="action" value="partner_send_orientation_email">
+				<input type="hidden" name="enrollment_id" value="<?= (int)$selected['id'] ?>">
+				<label class="no-floating-label">Orientation Email / Instructions<textarea required name="orientation_notes" placeholder="Send orientation instructions without setting a system date/time yet."></textarea></label>
+				<button class="btn btn-small" type="submit">Send Orientation Email Only</button>
+			</form>
 			<form method="post" class="form js-validate">
 				<input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
 				<input type="hidden" name="action" value="partner_schedule_orientation">
@@ -35,7 +42,7 @@
 				<input type="hidden" name="action" value="partner_complete_orientation">
 				<input type="hidden" name="enrollment_id" value="<?= (int)$selected['id'] ?>">
 				<label>Official OJT Start Date<input required type="date" name="official_start_date"></label>
-				<label>Projected End Date<input required type="date" name="projected_end_date"></label>
+				<label>Projected End Date<input type="date" name="projected_end_date"><small class="muted">Leave blank to calculate automatically from <?= (int)$selected['required_hours'] ?> required hours at 8 hours/day, weekdays only.</small></label>
 				<button class="btn btn-primary" type="submit">Mark Orientation Completed</button>
 			</form>
 		<?php endif; ?>

@@ -2,19 +2,69 @@ document.addEventListener('DOMContentLoaded', () => {
     initSidebar();
     initToasts();
     initFloatingLabels();
+    initPhoneInputs();
     initCharacterCounters();
     initForms();
     initCounters();
     initWizards();
+    initEnrollmentAutomation();
     initViewToggles();
     initTimelineDetails();
+    initEmailLogViews();
+    initRequirementReviewModals();
+    initNotifications();
     document.querySelectorAll('.data-table').forEach(table => enhanceTable(table));
-    document.querySelector('.modal-close')?.addEventListener('click', () => document.getElementById('modal').classList.remove('open'));
+    document.querySelector('#modal .modal-close')?.addEventListener('click', closeSlidePanel);
     document.addEventListener('click', handleOutsideMenus);
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSlidePanel(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeSlidePanel(); closeNotifications(); closeRequirementReviewModals(); } });
     initStudentModal();
     renderDashboardCharts();
 });
+
+function initNotifications() {
+    const menu  = document.getElementById('notifMenu');
+    const btn   = document.getElementById('notifBtn');
+    const panel = document.getElementById('notifPanel');
+    if (!menu || !btn || !panel) return;
+
+    function positionPanel() {
+        const rect = btn.getBoundingClientRect();
+        const panelWidth = Math.min(370, window.innerWidth - 32);
+        const left = Math.max(16, Math.min(rect.right - panelWidth, window.innerWidth - panelWidth - 16));
+        panel.style.top = (rect.bottom + 12) + 'px';
+        panel.style.left = left + 'px';
+        panel.style.width = panelWidth + 'px';
+        panel.style.setProperty('--caret-left', Math.round(rect.left + (rect.width / 2) - left - 7) + 'px');
+    }
+
+    btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const opening = !panel.classList.contains('is-open');
+        if (opening) {
+            panel.hidden = false;
+            positionPanel();
+        }
+        panel.classList.toggle('is-open', opening);
+        menu.classList.toggle('is-open', opening);   // for button active styling
+        btn.setAttribute('aria-expanded', String(opening));
+        if (!opening) panel.hidden = true;
+    });
+
+    window.addEventListener('resize', () => {
+        if (panel.classList.contains('is-open')) positionPanel();
+    });
+}
+
+function closeNotifications() {
+    const panel = document.getElementById('notifPanel');
+    const menu  = document.getElementById('notifMenu');
+    const btn   = document.getElementById('notifBtn');
+    if (!panel) return;
+    panel.classList.remove('is-open');
+    panel.hidden = true;
+    menu?.classList.remove('is-open');
+    btn?.setAttribute('aria-expanded', 'false');
+}
 
 function initSidebar() {
     if (localStorage.getItem('sidebarCollapsed') === '1') document.body.classList.add('sidebar-collapsed');
@@ -38,8 +88,8 @@ function initToasts() {
 }
 
 function initFloatingLabels() {
-    document.querySelectorAll('.form label, .filter-bar label').forEach(label => {
-        if (label.querySelector('.label-text')) return;
+    document.querySelectorAll('.form label, .filter-bar label, .partner-form-fields label, .partner-form-section > label').forEach(label => {
+        if (label.classList.contains('no-floating-label') || label.querySelector('.label-text')) return;
         const text = [...label.childNodes].find(n => n.nodeType === Node.TEXT_NODE && n.textContent.trim());
         const field = label.querySelector('input,select,textarea');
         if (!text || !field || field.type === 'hidden' || field.type === 'file') return;
@@ -49,9 +99,33 @@ function initFloatingLabels() {
         text.textContent = '';
         label.insertBefore(span, field);
         label.classList.add('floating-label');
+        if (field.tagName === 'TEXTAREA') label.classList.add('floating-textarea');
         const sync = () => label.classList.toggle('has-value', !!field.value);
         field.addEventListener('input', sync);
         field.addEventListener('change', sync);
+        sync();
+    });
+}
+
+function formatPhilippineMobile(value) {
+    let digits = String(value || '').replace(/\D/g, '');
+    if (digits.startsWith('63')) digits = digits.slice(2);
+    if (digits.startsWith('0')) digits = digits.slice(1);
+    digits = digits.slice(0, 10);
+    if (!digits) return '';
+    const parts = [digits.slice(0, 3), digits.slice(3, 6), digits.slice(6, 10)].filter(Boolean);
+    return `+63 ${parts.join(' ')}`.trim();
+}
+
+function initPhoneInputs() {
+    document.querySelectorAll('input[data-phone-format="ph"]').forEach(input => {
+        const sync = () => {
+            input.value = formatPhilippineMobile(input.value);
+            input.closest('label')?.classList.toggle('has-value', !!input.value);
+        };
+        input.addEventListener('input', sync);
+        input.addEventListener('paste', () => requestAnimationFrame(sync));
+        input.addEventListener('blur', sync);
         sync();
     });
 }
@@ -135,6 +209,33 @@ function updateWizardSummary(form) {
     const end = form.querySelector('[name="end_date"]')?.value || '-';
     const hours = form.querySelector('[name="required_hours"]')?.value || '-';
     box.innerHTML = `<h3>Confirm Enrollment</h3><p><strong>Student:</strong> ${escapeHtml(student)}</p><p><strong>Company:</strong> ${escapeHtml(company)}</p><p><strong>Schedule:</strong> ${escapeHtml(start)} to ${escapeHtml(end)}</p><p><strong>Required Hours:</strong> ${escapeHtml(hours)}</p><p class="muted">Submitting will send the student enrollment and company deployment emails.</p>`;
+}
+
+function initEnrollmentAutomation() {
+    document.querySelectorAll('form [name="student_id"]').forEach(studentSelect => {
+        const form = studentSelect.closest('form');
+        const companySelect = form?.querySelector('[name="company_id"]');
+        const hoursInput = form?.querySelector('[name="required_hours"]');
+        if (!form || !companySelect || !hoursInput) return;
+        const sync = () => {
+            const selected = studentSelect.selectedOptions[0];
+            const programId = selected?.dataset.programId || '';
+            const requiredHours = selected?.dataset.requiredHours || '';
+            hoursInput.value = requiredHours;
+            [...companySelect.options].forEach(option => {
+                if (!option.value) return;
+                const accepted = (option.dataset.programIds || '').split(',').filter(Boolean);
+                const visible = !programId || accepted.includes(programId);
+                option.hidden = !visible;
+                option.disabled = !visible;
+            });
+            if (companySelect.selectedOptions[0]?.disabled) companySelect.value = '';
+            updateWizardSummary(form);
+        };
+        studentSelect.addEventListener('change', sync);
+        companySelect.addEventListener('change', () => updateWizardSummary(form));
+        sync();
+    });
 }
 
 function initViewToggles() {
@@ -230,6 +331,11 @@ function handleOutsideMenus(event) {
     document.querySelectorAll('.column-options.open').forEach(menu => {
         if (!menu.parentElement.contains(event.target)) menu.classList.remove('open');
     });
+    const panel = document.querySelector('.notif-panel');
+    const btn   = document.getElementById('notifBtn');
+    if (panel && panel.classList.contains('is-open') && !panel.contains(event.target) && event.target !== btn && !btn?.contains(event.target)) {
+        closeNotifications();
+    }
 }
 
 function setColumnVisible(table, index, visible) {
@@ -255,6 +361,7 @@ function exportCsv(table) {
 }
 
 function attachRowDetails(table) {
+    if (table.classList.contains('no-row-details')) return;
     [...table.tBodies[0].rows].forEach(row => {
         if (row.dataset.detailReady) return;
         row.dataset.detailReady = '1';
@@ -290,6 +397,29 @@ function closeSlidePanel() {
 }
 function escapeHtml(value) {
     return String(value).replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#039;', '"': '&quot;' }[c]));
+}
+
+function formatLabel(value) {
+    return String(value || '')
+        .replaceAll('_', ' ')
+        .replace(/\b\w/g, char => char.toUpperCase());
+}
+
+function initEmailLogViews() {
+    document.querySelectorAll('.email-log-view').forEach(button => {
+        button.addEventListener('click', () => {
+            const data = button.dataset;
+            openSlidePanel(`
+                <h2>Email Log Details</h2>
+                <div class="detail-row"><span>Sent At</span><strong>${escapeHtml(data.sentAt || '')}</strong></div>
+                <div class="detail-row"><span>Recipient</span><strong>${escapeHtml(data.recipient || '')}</strong></div>
+                <div class="detail-row"><span>Subject</span><strong>${escapeHtml(data.subject || '')}</strong></div>
+                <div class="detail-row"><span>Type</span><strong>${escapeHtml(formatLabel(data.type || ''))}</strong></div>
+                <div class="detail-row"><span>Status</span><strong>${escapeHtml(formatLabel(data.status || ''))}</strong></div>
+                <div class="detail-row"><span>Error Message</span><strong>${escapeHtml(data.error || 'No error message')}</strong></div>
+            `);
+        });
+    });
 }
 
 function renderDashboardCharts() {
@@ -803,6 +933,29 @@ function drawLine(id, data) {
 
 function closeStudentModal() { closeSlidePanel(); }
 
+function closeRequirementReviewModals() {
+    document.querySelectorAll('.requirement-review-modal.open').forEach(modal => modal.classList.remove('open'));
+}
+
+function initRequirementReviewModals() {
+    document.querySelectorAll('[data-review-modal]').forEach(button => {
+        button.addEventListener('click', e => {
+            e.preventDefault();
+            e.stopPropagation();
+            const modal = document.getElementById(button.dataset.reviewModal || '');
+            if (!modal) return;
+            closeStudentModal();
+            closeRequirementReviewModals();
+            modal.classList.add('open');
+        });
+    });
+
+    document.querySelectorAll('.requirement-review-modal').forEach(modal => {
+        modal.querySelector('.requirement-review-modal-close')?.addEventListener('click', () => modal.classList.remove('open'));
+        modal.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('open'); });
+    });
+}
+
 function initStudentModal() {
     const modal = document.getElementById('studentModal');
     if (!modal) return;
@@ -815,6 +968,8 @@ function initStudentModal() {
     document.addEventListener('click', e => {
         const btn = e.target.closest('.student-view-btn');
         if (!btn) return;
+
+        closeRequirementReviewModals();
 
         const d = btn.dataset;
         document.getElementById('sm-name').textContent        = d.name || '';
