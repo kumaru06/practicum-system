@@ -1,5 +1,5 @@
 <section class="card">
-    <div class="card-head"><h2>Complete Your Basic Resume Profile</h2><p class="muted">You must complete this profile before accessing your student dashboard.</p></div>
+    <div class="card-head"><h2><?= !empty($profileCompleted) ? 'Update Your Student Profile' : 'Complete Your Basic Resume Profile' ?></h2><p class="muted"><?= !empty($profileCompleted) ? 'Update your information and save the latest version of your profile.' : 'You must complete this profile before accessing your student dashboard.' ?></p></div>
     <form action="{{ route('student.profile.save') }}" method="post" enctype="multipart/form-data" class="form js-validate">
         @csrf
         <div class="grid two">
@@ -15,7 +15,7 @@
             <label>Guardian Name<input required name="guardian_name" value="<?= e($student['guardian_name'] ?? '') ?>"></label>
             <label>Guardian Contact<input required name="guardian_contact" value="<?= e($student['guardian_contact'] ?? '') ?>"></label>
         </div>
-        <label>Address<textarea required name="address"><?= e($student['address'] ?? '') ?></textarea></label>
-        <button class="btn btn-primary" type="submit"><span class="btn-text">Save Profile & Unlock Dashboard</span><span class="spinner"></span></button>
+        <label><textarea required name="address" placeholder="Address"><?= e($student['address'] ?? '') ?></textarea></label>
+        <button class="btn btn-primary" type="submit"><span class="btn-text"><?= !empty($profileCompleted) ? 'Save Profile' : 'Save Profile & Unlock Dashboard' ?></span><span class="spinner"></span></button>
     </form>
 </section>

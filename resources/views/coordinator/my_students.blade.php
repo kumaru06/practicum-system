@@ -99,11 +99,11 @@
                 <div class="requirement-review-modal-body">
                     <div class="requirement-review-modal-summary">
                         <span><?= count($uploadedRequirements) ?> uploaded requirement<?= count($uploadedRequirements) === 1 ? '' : 's' ?></span>
-                        <strong>Approve or reject each uploaded file below</strong>
+                        <strong><?= in_array($s['predeployment_status'] ?? '', ['submitted', 'needs_revision', 'approved'], true) ? 'Approve or reject each uploaded file below' : 'Waiting for student to click Submit for Review' ?></strong>
                     </div>
                     <div class="requirement-review-modal-grid">
                         <?php foreach ($studentRequirements as $req): ?>
-                            <?php $reviewLocked = in_array($s['predeployment_status'] ?? '', ['forwarded', 'accepted', 'orientation_scheduled', 'orientation_completed'], true); ?>
+                            <?php $reviewLocked = !in_array($s['predeployment_status'] ?? '', ['submitted', 'needs_revision', 'approved'], true); ?>
                             <article class="requirement-review-item status-<?= e($req['status'] ?? 'pending') ?>">
                                 <div class="requirement-review-head">
                                     <div>
@@ -132,7 +132,7 @@
                                         </form>
                                     </div>
                                 <?php elseif (!empty($req['file_path']) && $reviewLocked): ?>
-                                    <div class="requirement-review-notes"><span>Review locked</span><strong>Documents are already in the deployment stage and can no longer be changed here.</strong></div>
+                                    <div class="requirement-review-notes"><span>Review locked</span><strong><?= in_array($s['predeployment_status'] ?? '', ['forwarded', 'accepted', 'orientation_scheduled', 'orientation_completed'], true) ? 'Documents are already in the deployment stage and can no longer be changed here.' : 'The student must submit all requirements for review before approval or rejection is available.' ?></strong></div>
                                 <?php endif; ?>
                                 <?php if (!empty($req['review_notes'])): ?>
                                     <div class="requirement-review-notes"><span>Review notes</span><strong><?= e($req['review_notes']) ?></strong></div>
@@ -149,8 +149,8 @@
                             <form action="{{ route('coordinator.deployments.forward') }}" method="post" enctype="multipart/form-data" class="form requirement-forward-form">
                                 @csrf
                                 <input type="hidden" name="enrollment_id" value="<?= (int)$s['enrollment_id'] ?>">
-                                <label>Endorsement Letter<input required type="file" name="endorsement_file" accept=".pdf,.jpg,.jpeg,.png"></label>
-                                <button class="btn btn-small" type="submit">Approve &amp; Forward</button>
+                                <label>Endorsement Letter <small class="muted">Optional — leave blank to generate one automatically.</small><input type="file" name="endorsement_file" accept=".pdf,.jpg,.jpeg,.png"></label>
+                                <button class="btn btn-small" type="submit">Generate/Upload &amp; Forward</button>
                             </form>
                         </div>
                     <?php endif; ?>

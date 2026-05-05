@@ -150,6 +150,9 @@ class PracticumService
     public function userFind(int $id): ?array { return $this->row(DB::selectOne('SELECT * FROM users WHERE id = ? LIMIT 1', [$id])); }
     public function userCreate(string $name, string $email, string $password, string $role, ?int $createdBy = null, int $passwordChanged = 1): int
     {
+        if (!trim($name)) throw new RuntimeException('Name is required.');
+        if (!filter_var(strtolower(trim($email)), FILTER_VALIDATE_EMAIL)) throw new RuntimeException('A valid email address is required.');
+        if (!in_array($role, ['admin', 'coordinator', 'student', 'partner'], true)) throw new RuntimeException('Invalid user role.');
         return (int)DB::table('users')->insertGetId(['name' => $name, 'email' => strtolower(trim($email)), 'password_hash' => password_hash($password, PASSWORD_DEFAULT), 'role' => $role, 'created_by' => $createdBy, 'is_active' => 1, 'password_changed' => $passwordChanged]);
     }
     public function usersAllStudents(): array { return $this->rows(DB::select('SELECT u.*, s.student_no, s.course FROM users u JOIN students s ON s.user_id = u.id ORDER BY u.name ASC')); }
@@ -160,6 +163,10 @@ class PracticumService
 
     public function companyCreate(int $userId, string $name, string $address, string $contactPerson, string $contactEmail, string $contactNumber = '', array $programIds = []): int
     {
+        if (!trim($name)) throw new RuntimeException('Company name is required.');
+        if (!trim($contactPerson)) throw new RuntimeException('Contact person is required.');
+        if (!filter_var(strtolower(trim($contactEmail)), FILTER_VALIDATE_EMAIL)) throw new RuntimeException('A valid partner email address is required.');
+        if (!$programIds) throw new RuntimeException('Select at least one accepted program/course.');
         $companyId = (int)DB::table('partner_companies')->insertGetId(['user_id' => $userId, 'name' => $name, 'address' => $address, 'contact_person' => $contactPerson, 'contact_email' => strtolower(trim($contactEmail)), 'contact_number' => $contactNumber]);
         $this->companySyncPrograms($companyId, $programIds);
         return $companyId;
@@ -175,7 +182,13 @@ class PracticumService
             if ($programId > 0) DB::table('company_programs')->insert(['company_id' => $companyId, 'program_id' => $programId]);
         }
     }
-    public function companyAcceptsProgram(int $companyId, int $programId): bool { return DB::table('partner_companies')->where('id', $companyId)->exists(); }
+    public function companyAcceptsProgram(int $companyId, int $programId): bool
+    {
+        return DB::table('company_programs')
+            ->where('company_id', $companyId)
+            ->where('program_id', $programId)
+            ->exists();
+    }
 
     public function programsAll(bool $activeOnly = false): array
     {
@@ -184,8 +197,18 @@ class PracticumService
         return $this->rows($query->orderBy('code')->get()->all());
     }
     public function programFind(int $id): ?array { return $this->row(DB::table('programs')->where('id', $id)->first()); }
-    public function programCreate(string $code, string $name, int $requiredHours): int { return (int)DB::table('programs')->insertGetId(['code' => strtoupper(trim($code)), 'name' => trim($name), 'required_hours' => $requiredHours]); }
-    public function programUpdate(int $id, string $code, string $name, int $requiredHours, int $active): void { DB::table('programs')->where('id', $id)->update(['code' => strtoupper(trim($code)), 'name' => trim($name), 'required_hours' => $requiredHours, 'is_active' => $active]); }
+    public function programCreate(string $code, string $name, int $requiredHours): int
+    {
+        if (!trim($code) || !trim($name)) throw new RuntimeException('Program code and name are required.');
+        if ($requiredHours < 1) throw new RuntimeException('Required OJT hours must be at least 1.');
+        return (int)DB::table('programs')->insertGetId(['code' => strtoupper(trim($code)), 'name' => trim($name), 'required_hours' => $requiredHours]);
+    }
+    public function programUpdate(int $id, string $code, string $name, int $requiredHours, int $active): void
+    {
+        if (!trim($code) || !trim($name)) throw new RuntimeException('Program code and name are required.');
+        if ($requiredHours < 1) throw new RuntimeException('Required OJT hours must be at least 1.');
+        DB::table('programs')->where('id', $id)->update(['code' => strtoupper(trim($code)), 'name' => trim($name), 'required_hours' => $requiredHours, 'is_active' => $active]);
+    }
     public function programDelete(int $id): void { DB::table('programs')->where('id', $id)->delete(); }
 
     public function studentCreate(int $userId, string $studentNo, string $course, string $yearLevel, string $corFile, int $coordinatorId, ?int $programId = null, string $section = ''): int
@@ -202,7 +225,7 @@ class PracticumService
     }
     public function requirementDefinitions(): array
     {
-        return ['guardian_consent' => ['name' => 'Parent/Guardian Consent Form', 'notes' => 'Download the template, fill it out, have it signed and notarized, then upload the scanned copy.'], 'philhealth' => ['name' => 'PhilHealth Card / Document', 'notes' => 'Upload scan or photo.'], 'vaccine_card' => ['name' => 'Vaccine Card', 'notes' => 'Upload scan or photo.'], 'guardian_id' => ['name' => "Guardian's Valid ID", 'notes' => 'Upload scan or photo.'], 'cor' => ['name' => 'Certificate of Registration (COR)', 'notes' => 'Upload current term COR.']];
+        return ['guardian_consent' => ['name' => 'Parent/Guardian Consent Form', 'notes' => 'Upload scan or photo.'], 'philhealth' => ['name' => 'PhilHealth Card / Document', 'notes' => 'Upload scan or photo.'], 'vaccine_card' => ['name' => 'Vaccine Card', 'notes' => 'Upload scan or photo.'], 'guardian_id' => ['name' => "Guardian's Valid ID", 'notes' => 'Upload scan or photo.'], 'cor' => ['name' => 'Certificate of Registration (COR)', 'notes' => 'Upload current term COR.']];
     }
     public function normalizePredeploymentStatus(?string $status): string
     {
@@ -266,7 +289,9 @@ class PracticumService
         $requirement = $this->studentRequirement($studentId, $key);
         $status = $requirement['status'] ?? 'pending';
         $hasFile = !empty($requirement['file_path']);
-        $predeploymentStatus = $this->normalizePredeploymentStatus($this->enrollmentDetailsByStudent($studentId)['predeployment_status'] ?? 'not_submitted');
+        $enrollment = $this->enrollmentDetailsByStudent($studentId);
+        if (!$enrollment) return false;
+        $predeploymentStatus = $this->normalizePredeploymentStatus($enrollment['predeployment_status'] ?? 'not_submitted');
         if (in_array($predeploymentStatus, ['approved', 'forwarded', 'accepted', 'orientation_scheduled', 'orientation_completed'], true)) return false;
         if ($status === 'rejected') return true;
         if ($hasFile) return false;
@@ -278,7 +303,9 @@ class PracticumService
         $requirement = $this->studentRequirement($studentId, $key);
         $status = $requirement['status'] ?? 'pending';
         $hasFile = !empty($requirement['file_path']);
-        $predeploymentStatus = $this->normalizePredeploymentStatus($this->enrollmentDetailsByStudent($studentId)['predeployment_status'] ?? 'not_submitted');
+        $enrollment = $this->enrollmentDetailsByStudent($studentId);
+        if (!$enrollment) return 'Enrollment required';
+        $predeploymentStatus = $this->normalizePredeploymentStatus($enrollment['predeployment_status'] ?? 'not_submitted');
         if ($status === 'approved') return 'Approved';
         if ($status === 'uploaded' && $hasFile) return 'Awaiting review';
         if ($status === 'rejected') return 'Replace the rejected file';
@@ -305,6 +332,8 @@ class PracticumService
     public function studentReviewRequirement(int $studentId, string $key, string $status, string $notes = ''): void
     {
         if (!in_array($status, ['approved', 'rejected'], true) || !isset($this->requirementDefinitions()[$key])) throw new RuntimeException('Invalid requirement review.');
+        $predeploymentStatus = $this->normalizePredeploymentStatus($this->enrollmentDetailsByStudent($studentId)['predeployment_status'] ?? 'not_submitted');
+        if (!in_array($predeploymentStatus, ['submitted', 'needs_revision', 'approved'], true)) throw new RuntimeException('Student must submit requirements for review before coordinator approval or rejection.');
         $count = DB::update('UPDATE student_requirements SET status = ?, notes = ?, reviewed_at = NOW() WHERE student_id = ? AND requirement_key = ? AND file_path IS NOT NULL', [$status, $notes, $studentId, $key]);
         if ($count === 0) throw new RuntimeException('Requirement file is not available for review.');
     }
@@ -312,9 +341,9 @@ class PracticumService
     public function studentHasApprovedRequirements(int $studentId): bool { foreach ($this->studentRequirements($studentId) as $req) if (empty($req['file_path']) || ($req['status'] ?? '') !== 'approved') return false; return true; }
     public function studentRequirementFilePaths(int $studentId): array { return array_values(array_filter(array_map(static fn ($req) => $req['file_path'] ?? null, $this->studentRequirements($studentId)))); }
 
-    public function enrollmentCreate(int $studentId, int $companyId, string $startDate, string $endDate, int $requiredHours, string $academicTerm = '', string $termStartDate = '', string $termEndDate = ''): int
+    public function enrollmentCreate(int $studentId, int $companyId, ?string $startDate, ?string $endDate, int $requiredHours, string $academicTerm = '', string $termStartDate = '', string $termEndDate = ''): int
     {
-        DB::statement('INSERT INTO ojt_enrollments (student_id, company_id, academic_term, term_start_date, term_end_date, start_date, end_date, required_hours, status, predeployment_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, "pending", "not_submitted") ON DUPLICATE KEY UPDATE company_id = VALUES(company_id), academic_term = VALUES(academic_term), term_start_date = VALUES(term_start_date), term_end_date = VALUES(term_end_date), start_date = VALUES(start_date), end_date = VALUES(end_date), required_hours = VALUES(required_hours)', [$studentId, $companyId, $academicTerm, $termStartDate ?: null, $termEndDate ?: null, $startDate, $endDate, $requiredHours]);
+        DB::statement('INSERT INTO ojt_enrollments (student_id, company_id, academic_term, term_start_date, term_end_date, start_date, end_date, required_hours, status, predeployment_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, "pending", "not_submitted") ON DUPLICATE KEY UPDATE company_id = VALUES(company_id), academic_term = VALUES(academic_term), term_start_date = VALUES(term_start_date), term_end_date = VALUES(term_end_date), start_date = VALUES(start_date), end_date = VALUES(end_date), required_hours = VALUES(required_hours)', [$studentId, $companyId, $academicTerm, $termStartDate ?: null, $termEndDate ?: null, $startDate ?: null, $endDate ?: null, $requiredHours]);
         return (int)(DB::scalar('SELECT id FROM ojt_enrollments WHERE student_id = ?', [$studentId]) ?? 0);
     }
     public function enrollmentActiveCount(): int { return (int)DB::scalar('SELECT COUNT(*) FROM ojt_enrollments WHERE status = "active"'); }
@@ -388,6 +417,27 @@ class PracticumService
     public function enrollmentAcceptDeployment(int $enrollmentId): void { DB::update('UPDATE ojt_enrollments SET predeployment_status = "accepted", accepted_at = NOW() WHERE id = ?', [$enrollmentId]); }
     public function enrollmentScheduleOrientation(int $enrollmentId, string $dateTime, string $notes): void { DB::update('UPDATE ojt_enrollments SET predeployment_status = "orientation_scheduled", orientation_datetime = ?, orientation_notes = ? WHERE id = ?', [$dateTime, $notes, $enrollmentId]); }
     public function enrollmentCompleteOrientation(int $enrollmentId, string $officialStart, string $projectedEnd): void { DB::update('UPDATE ojt_enrollments SET predeployment_status = "orientation_completed", status = "active", official_start_date = ?, projected_end_date = ?, start_date = ?, end_date = ? WHERE id = ?', [$officialStart, $projectedEnd, $officialStart, $projectedEnd, $enrollmentId]); }
+    public function generateEndorsementLetter(array $student, array $company, array $coordinator, array $enrollment): string
+    {
+        $targetDir = public_path('uploads/endorsements');
+        if (!is_dir($targetDir)) {
+            mkdir($targetDir, 0755, true);
+        }
+
+        $safe = static fn ($value): string => htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
+        $fileName = 'endorsement_' . (int)($student['id'] ?? 0) . '_' . date('YmdHis') . '.html';
+        $content = '<!doctype html><html><head><meta charset="utf-8"><title>Endorsement Letter</title><style>body{font-family:Arial,sans-serif;line-height:1.6;color:#111827;padding:42px;max-width:820px;margin:auto}.head{text-align:center;margin-bottom:34px}.date{text-align:right}.signature{margin-top:54px}</style></head><body>'
+            . '<div class="head"><h2>AMA Computer College</h2><h3>Recommendation / Endorsement Letter</h3></div>'
+            . '<p class="date">' . date('F d, Y') . '</p>'
+            . '<p>Dear ' . $safe($company['contact_person'] ?? 'Industry Partner') . ',</p>'
+            . '<p>This is to formally endorse <strong>' . $safe($student['name'] ?? $student['student_name'] ?? 'Student') . '</strong>, student number <strong>' . $safe($student['student_no'] ?? '') . '</strong>, from <strong>' . $safe($student['course'] ?? '') . '</strong>, for On-the-Job Training deployment at <strong>' . $safe($company['name'] ?? '') . '</strong>.</p>'
+            . '<p>The student is enrolled for <strong>' . $safe($enrollment['academic_term'] ?? '') . '</strong> and is required to complete <strong>' . $safe($enrollment['required_hours'] ?? '') . ' hours</strong>. The official OJT start date and projected end date will be confirmed by your company after orientation.</p>'
+            . '<p>Attached with this endorsement are the student pre-deployment requirements for your review and acceptance.</p>'
+            . '<div class="signature"><p>Respectfully,</p><p><strong>' . $safe($coordinator['name'] ?? 'OJT Coordinator') . '</strong><br>OJT Coordinator<br>' . $safe($coordinator['email'] ?? '') . '</p></div>'
+            . '</body></html>';
+        file_put_contents($targetDir . DIRECTORY_SEPARATOR . $fileName, $content);
+        return 'uploads/endorsements/' . $fileName;
+    }
     public function enrollmentSyncCompletion(int $studentId): void
     {
         $rows = $this->rows(DB::select('SELECT e.id, e.required_hours, COALESCE(SUM(d.hours), 0) rendered_hours FROM ojt_enrollments e LEFT JOIN daily_time_records d ON d.student_id = e.student_id WHERE e.student_id = ? AND e.status = "active" GROUP BY e.id, e.required_hours', [$studentId]));
@@ -396,6 +446,11 @@ class PracticumService
 
     public function reportAddDtr(int $studentId, string $date, string $timeIn, string $timeOut, string $tasks): void
     {
+        if (!$date || strtotime($date) === false) throw new RuntimeException('Invalid work date.');
+        $today = (new \DateTimeImmutable('now', new \DateTimeZone(config('app.timezone', 'Asia/Manila'))))->format('Y-m-d');
+        if (date('Y-m-d', strtotime($date)) > $today) throw new RuntimeException('Daily time record date cannot be in the future.');
+        if (DB::table('daily_time_records')->where('student_id', $studentId)->where('work_date', date('Y-m-d', strtotime($date)))->exists()) throw new RuntimeException('A daily time record already exists for this date.');
+        if (!trim($tasks)) throw new RuntimeException('Tasks done is required.');
         $tsIn = strtotime($timeIn); $tsOut = strtotime($timeOut);
         if ($tsIn === false || $tsOut === false) throw new RuntimeException('Invalid time-in or time-out values.');
         if ($tsOut <= $tsIn) $tsOut += 86400;
@@ -403,10 +458,20 @@ class PracticumService
     }
     public function reportDtrByStudent(int $studentId): array { return $this->rows(DB::select('SELECT * FROM daily_time_records WHERE student_id = ? ORDER BY work_date DESC', [$studentId])); }
     public function reportTotalHours(int $studentId): float { return (float)DB::scalar('SELECT COALESCE(SUM(hours),0) FROM daily_time_records WHERE student_id = ?', [$studentId]); }
-    public function reportAddWeekly(int $studentId, int $weekNo, ?string $text, ?string $filePath): void { DB::table('weekly_reports')->insert(['student_id' => $studentId, 'week_no' => $weekNo, 'report_text' => $text, 'file_path' => $filePath]); }
+    public function reportAddWeekly(int $studentId, int $weekNo, ?string $text, ?string $filePath): void
+    {
+        if ($weekNo < 1) throw new RuntimeException('Week number must be at least 1.');
+        if (DB::table('weekly_reports')->where('student_id', $studentId)->where('week_no', $weekNo)->exists()) throw new RuntimeException('A weekly report already exists for this week.');
+        DB::table('weekly_reports')->insert(['student_id' => $studentId, 'week_no' => $weekNo, 'report_text' => $text, 'file_path' => $filePath]);
+    }
     public function reportWeeklyByStudent(int $studentId): array { return $this->rows(DB::select('SELECT * FROM weekly_reports WHERE student_id = ? ORDER BY week_no DESC', [$studentId])); }
 
-    public function evaluationSubmit(int $enrollmentId, int $companyId, int $rating, string $comments): void { DB::statement('INSERT INTO evaluations (enrollment_id, company_id, rating, comments) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE rating = VALUES(rating), comments = VALUES(comments), submitted_at = CURRENT_TIMESTAMP', [$enrollmentId, $companyId, $rating, $comments]); }
+    public function evaluationSubmit(int $enrollmentId, int $companyId, int $rating, string $comments): void
+    {
+        if ($rating < 1 || $rating > 5) throw new RuntimeException('Evaluation rating must be from 1 to 5.');
+        if (!trim($comments)) throw new RuntimeException('Evaluation comments are required.');
+        DB::statement('INSERT INTO evaluations (enrollment_id, company_id, rating, comments) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE rating = VALUES(rating), comments = VALUES(comments), submitted_at = CURRENT_TIMESTAMP', [$enrollmentId, $companyId, $rating, $comments]);
+    }
     public function evaluationByEnrollment(int $enrollmentId): ?array { return $this->row(DB::selectOne('SELECT * FROM evaluations WHERE enrollment_id = ?', [$enrollmentId])); }
     public function evaluationsAllWithDetails(): array { return $this->rows(DB::select('SELECT e.*, u.name AS student_name, s.student_no, s.course, s.year_level, c.name AS company_name, en.start_date, en.end_date FROM evaluations e JOIN ojt_enrollments en ON en.id = e.enrollment_id JOIN students s ON s.id = en.student_id JOIN users u ON u.id = s.user_id JOIN partner_companies c ON c.id = e.company_id ORDER BY e.submitted_at DESC')); }
     public function evaluationsByCoordinator(int $coordinatorId): array { return $this->rows(DB::select('SELECT e.*, u.name AS student_name, s.student_no, s.course, s.year_level, c.name AS company_name, en.start_date, en.end_date FROM evaluations e JOIN ojt_enrollments en ON en.id = e.enrollment_id JOIN students s ON s.id = en.student_id JOIN users u ON u.id = s.user_id JOIN partner_companies c ON c.id = e.company_id WHERE s.coordinator_id = ? ORDER BY e.submitted_at DESC', [$coordinatorId])); }

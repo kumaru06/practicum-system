@@ -205,10 +205,11 @@ function updateWizardSummary(form) {
     if (!box) return;
     const student = form.querySelector('[name="student_id"]')?.selectedOptions[0]?.textContent || '-';
     const company = form.querySelector('[name="company_id"]')?.selectedOptions[0]?.textContent || '-';
-    const start = form.querySelector('[name="start_date"]')?.value || '-';
-    const end = form.querySelector('[name="end_date"]')?.value || '-';
+    const academicTerm = form.querySelector('[name="academic_term"]')?.value || '-';
+    const termStart = form.querySelector('[name="term_start_date"]')?.value || '-';
+    const termEnd = form.querySelector('[name="term_end_date"]')?.value || '-';
     const hours = form.querySelector('[name="required_hours"]')?.value || '-';
-    box.innerHTML = `<h3>Confirm Enrollment</h3><p><strong>Student:</strong> ${escapeHtml(student)}</p><p><strong>Company:</strong> ${escapeHtml(company)}</p><p><strong>Schedule:</strong> ${escapeHtml(start)} to ${escapeHtml(end)}</p><p><strong>Required Hours:</strong> ${escapeHtml(hours)}</p><p class="muted">Submitting will send the student enrollment and company deployment emails.</p>`;
+    box.innerHTML = `<h3>Confirm Enrollment</h3><p><strong>Student:</strong> ${escapeHtml(student)}</p><p><strong>Company:</strong> ${escapeHtml(company)}</p><p><strong>Academic Term:</strong> ${escapeHtml(academicTerm)}</p><p><strong>Term Coverage:</strong> ${escapeHtml(termStart)} to ${escapeHtml(termEnd)}</p><p><strong>Required Hours:</strong> ${escapeHtml(hours)}</p><p class="muted">Submitting will send the student enrollment and company deployment emails. The company partner will confirm the official OJT schedule during orientation.</p>`;
 }
 
 function initEnrollmentAutomation() {
@@ -220,12 +221,16 @@ function initEnrollmentAutomation() {
         const sync = () => {
             const selected = studentSelect.selectedOptions[0];
             const requiredHours = selected?.dataset.requiredHours || '';
+            const programId = selected?.dataset.programId || '';
             hoursInput.value = requiredHours;
             [...companySelect.options].forEach(option => {
                 if (!option.value) return;
-                option.hidden = false;
-                option.disabled = false;
+                const acceptedPrograms = (option.dataset.programIds || '').split(',').map(id => id.trim()).filter(Boolean);
+                const acceptsProgram = !programId || acceptedPrograms.includes(programId);
+                option.hidden = !acceptsProgram;
+                option.disabled = !acceptsProgram;
             });
+            if (companySelect.selectedOptions[0]?.disabled) companySelect.value = '';
             updateWizardSummary(form);
         };
         studentSelect.addEventListener('change', sync);

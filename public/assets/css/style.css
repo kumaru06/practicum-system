@@ -2299,6 +2299,11 @@ small,
     margin-bottom: 22px;
 }
 
+.student-summary-grid {
+    grid-template-columns: minmax(320px, 1.55fr) minmax(260px, 1.15fr) minmax(210px, 0.9fr);
+    gap: 16px;
+}
+
 .two {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     margin-bottom: 22px;
@@ -2346,31 +2351,154 @@ small,
 .metric {
     display: flex;
     align-items: center;
-    gap: 16px;
-    min-height: 116px;
+    gap: 18px;
+    min-height: 110px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.metric svg {
+.metric-icon {
+    flex-shrink: 0;
+    width: 54px;
+    height: 54px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 16px;
+    background: linear-gradient(145deg, #fce8e8 0%, #f8cccc 100%);
+    box-shadow: 0 4px 12px rgba(139, 26, 26, 0.12), inset 0 1px 0 rgba(255,255,255,0.7);
+}
+
+.metric-icon svg {
+    width: 26px;
+    height: 26px;
+    fill: #8b1a1a;
+    color: #8b1a1a;
+}
+
+.metric > svg {
+    flex-shrink: 0;
     width: 52px;
     height: 52px;
     padding: 12px;
     border-radius: 18px;
     background: linear-gradient(135deg, #fde8e8, #fbd0d0 70%, #f9c0c0);
-    color: var(--blue-500);
+    color: #8b1a1a;
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.6), 0 10px 20px rgba(139, 26, 26, 0.14);
 }
 
-.metric strong {
+.metric-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.metric-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--muted);
+    margin-bottom: 2px;
+}
+
+.metric-value {
+    display: block;
+    font-size: clamp(1.2rem, 1.6vw, 1.6rem);
+    font-weight: 700;
+    color: var(--navy-900);
+    letter-spacing: -0.03em;
+    line-height: 1.2;
+    white-space: normal;
+    word-break: normal;
+    overflow-wrap: anywhere;
+}
+
+.metric > div:not(.metric-body):not(.metric-icon),
+.metric > div:last-child:not(.metric-body):not(.metric-icon) {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.metric > div:not(.metric-body):not(.metric-icon) strong,
+.metric > div:last-child:not(.metric-body):not(.metric-icon) strong {
     display: block;
     margin-bottom: 6px;
     font-size: clamp(1.9rem, 2.4vw, 2.45rem);
     color: var(--navy-900);
     letter-spacing: -0.05em;
+    line-height: 1.05;
 }
 
-.metric span {
+.metric > div:not(.metric-body):not(.metric-icon) span,
+.metric > div:last-child:not(.metric-body):not(.metric-icon) span {
+    display: block;
     font-size: 0.92rem;
     color: var(--muted);
+}
+
+.metric-company-card {
+    align-items: flex-start;
+}
+
+.metric-company-value {
+    font-size: clamp(1rem, 1.12vw, 1.28rem);
+    line-height: 1.2;
+    overflow-wrap: normal;
+    word-break: keep-all;
+}
+
+.metric-schedule {
+    font-size: clamp(1.1rem, 1.6vw, 1.35rem) !important;
+}
+
+.metric-schedule-to {
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-top: 1px;
+}
+
+.student-summary-grid .metric {
+    min-height: 96px;
+    padding: 18px 20px;
+    gap: 14px;
+    align-items: center;
+}
+
+.student-summary-grid .metric-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+}
+
+.student-summary-grid .metric-icon svg {
+    width: 22px;
+    height: 22px;
+}
+
+.student-summary-grid .metric-body {
+    justify-content: center;
+    gap: 4px;
+}
+
+.student-summary-grid .metric-label {
+    margin-bottom: 0;
+    font-size: 0.68rem;
+    letter-spacing: 0.05em;
+}
+
+.student-summary-grid .metric-value {
+    font-size: clamp(1.05rem, 1.22vw, 1.4rem);
+    line-height: 1.12;
+}
+
+.student-summary-grid .metric-schedule {
+    font-size: clamp(1.02rem, 1.14vw, 1.24rem) !important;
+}
+
+.student-summary-grid .metric-schedule-to {
+    font-size: 0.78rem;
 }
 
 .chart-grid {
@@ -3729,6 +3857,10 @@ small,
     .charts {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
+
+    .student-summary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 
 @media (max-width: 768px) {
@@ -3870,6 +4002,10 @@ small,
     .two,
     .charts,
     .filter-bar {
+        grid-template-columns: 1fr;
+    }
+
+    .student-summary-grid {
         grid-template-columns: 1fr;
     }
 }

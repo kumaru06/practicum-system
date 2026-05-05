@@ -48,6 +48,11 @@ Route::prefix('coordinator')->name('coordinator.')->group(function () {
 
 Route::get('/student', [StudentController::class, 'dashboard'])->name('student.dashboard');
 Route::prefix('student')->name('student.')->group(function () {
+	Route::get('/portal', [StudentController::class, 'portal'])->name('portal');
+	Route::get('/records', [StudentController::class, 'records'])->name('records');
+	Route::get('/timeline', [StudentController::class, 'timeline'])->name('timeline');
+	Route::get('/documents', [StudentController::class, 'documents'])->name('documents');
+	Route::get('/settings', [StudentController::class, 'settings'])->name('settings');
 	Route::get('/profile', [StudentController::class, 'profile'])->name('profile');
 	Route::post('/profile', [StudentController::class, 'saveProfile'])->name('profile.save');
 	Route::get('/change-password', [StudentController::class, 'password'])->name('password.edit');
@@ -106,6 +111,11 @@ Route::prefix('practicum-system')->group(function () {
 	Route::get('/coordinator/evaluations', [CoordinatorController::class, 'evaluations']);
 
 	Route::get('/student', [StudentController::class, 'dashboard']);
+	Route::get('/student/portal', [StudentController::class, 'portal']);
+	Route::get('/student/records', [StudentController::class, 'records']);
+	Route::get('/student/timeline', [StudentController::class, 'timeline']);
+	Route::get('/student/documents', [StudentController::class, 'documents']);
+	Route::get('/student/settings', [StudentController::class, 'settings']);
 	Route::get('/student/profile', [StudentController::class, 'profile']);
 	Route::post('/student/profile', [StudentController::class, 'saveProfile']);
 	Route::get('/student/change-password', [StudentController::class, 'password']);

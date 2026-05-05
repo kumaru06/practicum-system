@@ -21,6 +21,7 @@ class PartnerController extends Controller
     public function acceptDeployment(Request $request, PracticumService $p): RedirectResponse
     {
         [$company, $enrollment] = $this->ownedEnrollment($request, $p);
+        if (($enrollment['predeployment_status'] ?? '') !== 'forwarded') return redirect()->route('partner.dashboard', ['enrollment' => (int)$enrollment['id']])->with('error', 'Deployment can only be accepted after the coordinator forwards approved documents.');
         $p->enrollmentAcceptDeployment((int)$enrollment['id']);
         $student = $p->studentFind((int)$enrollment['student_id']);
         if ($student) {
@@ -33,6 +34,7 @@ class PartnerController extends Controller
     public function sendOrientationEmail(Request $request, PracticumService $p): RedirectResponse
     {
         [$company, $enrollment] = $this->ownedEnrollment($request, $p);
+        if (!in_array($enrollment['predeployment_status'] ?? '', ['accepted', 'orientation_scheduled'], true)) return redirect()->route('partner.dashboard', ['enrollment' => (int)$enrollment['id']])->with('error', 'Orientation instructions unlock after deployment acceptance.');
         $notes = trim((string)$request->input('orientation_notes', ''));
         $student = $p->studentFind((int)$enrollment['student_id']);
         $p->emailSend($enrollment['student_email'], 'OJT Orientation Instructions', 'orientation_email', 'orientation_notice', ['student' => $enrollment, 'company' => $company, 'orientationDateTime' => '', 'notes' => $notes]);
@@ -47,7 +49,10 @@ class PartnerController extends Controller
     public function scheduleOrientation(Request $request, PracticumService $p): RedirectResponse
     {
         [$company, $enrollment] = $this->ownedEnrollment($request, $p);
+        if (!in_array($enrollment['predeployment_status'] ?? '', ['accepted', 'orientation_scheduled'], true)) return redirect()->route('partner.dashboard', ['enrollment' => (int)$enrollment['id']])->with('error', 'Orientation scheduling unlocks after deployment acceptance.');
         $orientationDateTime = (string)$request->input('orientation_datetime');
+        if (!$orientationDateTime || strtotime($orientationDateTime) === false) return redirect()->route('partner.dashboard', ['enrollment' => (int)$enrollment['id']])->with('error', 'Enter a valid orientation date and time.');
+        if (strtotime($orientationDateTime) < time()) return redirect()->route('partner.dashboard', ['enrollment' => (int)$enrollment['id']])->with('error', 'Orientation date and time cannot be in the past.');
         $notes = trim((string)$request->input('orientation_notes', ''));
         $p->enrollmentScheduleOrientation((int)$enrollment['id'], $orientationDateTime, $notes);
         $student = $p->studentFind((int)$enrollment['student_id']);
@@ -63,8 +68,11 @@ class PartnerController extends Controller
     public function completeOrientation(Request $request, PracticumService $p): RedirectResponse
     {
         [$company, $enrollment] = $this->ownedEnrollment($request, $p);
+        if (($enrollment['predeployment_status'] ?? '') !== 'orientation_scheduled') return redirect()->route('partner.dashboard', ['enrollment' => (int)$enrollment['id']])->with('error', 'Complete orientation only after an orientation schedule is saved.');
         $officialStartDate = (string)$request->input('official_start_date');
+        if (!$officialStartDate || strtotime($officialStartDate) === false) return redirect()->route('partner.dashboard', ['enrollment' => (int)$enrollment['id']])->with('error', 'Enter a valid official OJT start date.');
         $projectedEndDate = trim((string)$request->input('projected_end_date', '')) ?: $p->projectedOjtEndDate($officialStartDate, (int)$enrollment['required_hours']);
+        if (strtotime($projectedEndDate) < strtotime($officialStartDate)) return redirect()->route('partner.dashboard', ['enrollment' => (int)$enrollment['id']])->with('error', 'Projected end date cannot be earlier than the official start date.');
         $p->enrollmentCompleteOrientation((int)$enrollment['id'], $officialStartDate, $projectedEndDate);
         $student = $p->studentFind((int)$enrollment['student_id']);
         $p->emailSend($enrollment['student_email'], 'Your OJT Has Officially Started', 'ojt_started', 'ojt_started', ['student' => $enrollment, 'company' => $company, 'officialStartDate' => $officialStartDate, 'projectedEndDate' => $projectedEndDate, 'requiredHours' => (int)$enrollment['required_hours']]);
@@ -79,6 +87,7 @@ class PartnerController extends Controller
     public function submitEvaluation(Request $request, PracticumService $p): RedirectResponse
     {
         [$company, $enrollment] = $this->ownedEnrollment($request, $p);
+        if (($enrollment['predeployment_status'] ?? '') !== 'orientation_completed') return redirect()->route('partner.dashboard', ['enrollment' => (int)$enrollment['id']])->with('error', 'Final evaluation unlocks after orientation completion.');
         $p->evaluationSubmit((int)$enrollment['id'], (int)$company['id'], (int)$request->input('rating'), trim((string)$request->input('comments')));
         return redirect()->route('partner.dashboard', ['enrollment' => (int)$enrollment['id']])->with('success', 'Final evaluation submitted.');
     }
