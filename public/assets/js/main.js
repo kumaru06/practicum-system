@@ -368,8 +368,50 @@ function attachRowDetails(table) {
         row.dataset.detailReady = '1';
         row.addEventListener('click', e => {
             if (e.target.closest('a,button,form,input,select,textarea')) return;
+
+            if (row.dataset.detailType === 'partner-student') {
+                const d = row.dataset;
+                openSlidePanel(
+                    '<h2>Record Details</h2>' +
+                    `<div class="detail-row"><span>Name</span><strong>${escapeHtml(d.detailName || '')}</strong></div>` +
+                    `<div class="detail-row"><span>Email</span><strong>${escapeHtml(d.detailEmail || '')}</strong></div>` +
+                    `<div class="detail-row"><span>Student No.</span><strong>${escapeHtml(d.detailStudentNo || '')}</strong></div>` +
+                    `<div class="detail-row"><span>Course</span><strong>${escapeHtml(d.detailCourse || '')}</strong></div>` +
+                    `<div class="detail-row"><span>Year</span><strong>${escapeHtml(d.detailYear || '')}</strong></div>` +
+                    `<div class="detail-row"><span>Schedule</span><strong>${escapeHtml(d.detailSchedule || '')}</strong></div>` +
+                    `<div class="detail-row"><span>Pre-Deployment</span><strong>${escapeHtml(d.detailPredeployment || '')}</strong></div>`
+                );
+                return;
+            }
+
             const headers = [...table.tHead.rows[0].cells].map(th => th.innerText.trim());
-            const html = [...row.cells].map((cell, i) => `<div class="detail-row"><span>${escapeHtml(headers[i] || 'Field')}</span><strong>${escapeHtml(cell.innerText.trim())}</strong></div>`).join('');
+            const hasEmailColumn = headers.some(header => /^email$/i.test(header));
+            const html = [...row.cells].map((cell, i) => {
+                const header = headers[i] || 'Field';
+                const cellClone = cell.cloneNode(true);
+                cellClone.querySelectorAll('.table-avatar, .partner-company-avatar, .user-avatar, .notif-avatar').forEach(el => el.remove());
+                const value = cellClone.innerText.trim();
+
+                if (/^name$/i.test(header) && !hasEmailColumn) {
+                    const parts = value.split(/\r?\n/).map(part => part.trim()).filter(Boolean);
+                    const emailIndex = parts.findIndex(part => part.includes('@'));
+                    if (emailIndex > 0) {
+                        const cleanParts = [...parts];
+                        if (cleanParts[0] && cleanParts[0].length === 1 && cleanParts.length > 2) {
+                            cleanParts.shift();
+                        }
+
+                        const resolvedEmailIndex = cleanParts.findIndex(part => part.includes('@'));
+                        if (resolvedEmailIndex > 0) {
+                            const name = cleanParts.slice(0, resolvedEmailIndex).join(' ');
+                            const email = cleanParts.slice(resolvedEmailIndex).join(' ');
+                            return `<div class="detail-row"><span>Name</span><strong>${escapeHtml(name)}</strong></div><div class="detail-row"><span>Email</span><strong>${escapeHtml(email)}</strong></div>`;
+                        }
+                    }
+                }
+
+                return `<div class="detail-row"><span>${escapeHtml(header)}</span><strong>${escapeHtml(value)}</strong></div>`;
+            }).join('');
             openSlidePanel('<h2>Record Details</h2>' + html);
         });
     });
@@ -977,6 +1019,8 @@ function initStudentModal() {
         document.getElementById('sm-email').textContent       = d.email || '';
         document.getElementById('sm-student-no').textContent  = d.studentNo || '';
         document.getElementById('sm-course').textContent      = d.course || '';
+        document.getElementById('sm-section').textContent     = d.section || '—';
+        document.getElementById('sm-year').textContent        = d.year || '—';
         document.getElementById('sm-company').textContent     = d.company || '';
         document.getElementById('sm-progress').textContent    = `${d.rendered} / ${d.required} hrs (${d.percent}%)`;
 

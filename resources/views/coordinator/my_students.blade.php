@@ -37,7 +37,9 @@
                             data-name="<?= e($s['name']) ?>"
                             data-email="<?= e($s['email']) ?>"
                             data-student-no="<?= e($s['student_no']) ?>"
-                            data-course="<?= e($s['course'] . ' ' . $s['year_level']) ?>"
+                            data-course="<?= e($s['course']) ?>"
+                            data-section="<?= e($s['section'] ?? '') ?>"
+                            data-year="<?= e($s['year_level'] ?? '') ?>"
                             data-company="<?= e($s['company_name'] ?? '-') ?>"
                             data-status="<?= e($s['deployment_status'] ?? 'pending') ?>"
                             data-rendered="<?= number_format($rendered, 2) ?>"
@@ -65,6 +67,8 @@
         <div class="sm-details-grid student-panel-grid">
             <div class="student-panel-item"><span class="sm-label">Student No.</span><strong id="sm-student-no"></strong></div>
             <div class="student-panel-item"><span class="sm-label">Course</span><strong id="sm-course"></strong></div>
+            <div class="student-panel-item"><span class="sm-label">Section</span><strong id="sm-section"></strong></div>
+            <div class="student-panel-item"><span class="sm-label">Year</span><strong id="sm-year"></strong></div>
             <div class="student-panel-item"><span class="sm-label">Company</span><strong id="sm-company"></strong></div>
             <div class="student-panel-item"><span class="sm-label">Status</span><div id="sm-status"></div></div>
             <div class="student-panel-item student-panel-item-wide"><span class="sm-label">OJT Progress</span><strong id="sm-progress"></strong></div>

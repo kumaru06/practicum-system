@@ -7,7 +7,195 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ asset('assets/css/style.css') }}?v=20260505-student-icon-fix">
+    <link rel="stylesheet" href="{{ asset('assets/css/style.css') }}?v=20260505-student-dashboard-polish">
+    <style>
+    /* ── Custom Datepicker ── */
+    .dp-wrap { position: relative; display: block; width: 100%; }
+    .dp-trigger {
+        display: flex; align-items: center; gap: 10px;
+        width: 100%; padding: 10px 14px;
+        background: #fff; border: 1.5px solid #e5e7eb;
+        border-radius: 10px; cursor: pointer;
+        font-family: inherit; font-size: .92rem; color: #111827;
+        transition: border-color .15s, box-shadow .15s;
+        text-align: left; box-sizing: border-box; min-height: 46px;
+    }
+    .dp-trigger:hover { border-color: #8B1A1A; }
+    .dp-trigger:focus { outline: none; border-color: #8B1A1A; box-shadow: 0 0 0 3px rgba(139,26,26,.1); }
+    .dp-trigger-placeholder { color: #9ca3af; }
+    .dp-trigger-icon { margin-left: auto; flex-shrink: 0; color: #6b7280; }
+    .dp-trigger-clear {
+        margin-left: auto; flex-shrink: 0; width: 18px; height: 18px;
+        border-radius: 50%; background: #e5e7eb; border: none; cursor: pointer;
+        display: flex; align-items: center; justify-content: center; padding: 0;
+        color: #6b7280; font-size: 12px; line-height: 1;
+        transition: background .15s, color .15s;
+    }
+    .dp-trigger-clear:hover { background: #8B1A1A; color: #fff; }
+    .dp-popup {
+        position: absolute; top: calc(100% + 8px); left: 0;
+        z-index: 9999; width: 300px;
+        background: #fff; border-radius: 16px;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,.07), 0 20px 50px -8px rgba(0,0,0,.18);
+        border: 1px solid rgba(0,0,0,.06);
+        padding: 0; overflow: hidden;
+        transform-origin: top left;
+        animation: dpFadeIn .15s ease;
+    }
+    @keyframes dpFadeIn { from { opacity:0; transform: scale(.96) translateY(-4px); } to { opacity:1; transform: scale(1) translateY(0); } }
+    .dp-popup.dp-align-right { left: auto; right: 0; transform-origin: top right; }
+    .dp-header {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 14px 16px 10px;
+        border-bottom: 1px solid #f3f4f6;
+    }
+    .dp-nav-btn {
+        width: 32px; height: 32px; border: none; background: #f3f4f6;
+        border-radius: 8px; cursor: pointer; display: flex;
+        align-items: center; justify-content: center; color: #374151;
+        transition: background .15s, color .15s;
+    }
+    .dp-nav-btn:hover { background: #8B1A1A; color: #fff; }
+    .dp-month-year {
+        font-weight: 800; font-size: .92rem; color: #111827;
+        cursor: pointer; padding: 4px 8px; border-radius: 6px;
+        transition: background .15s;
+        font-family: inherit;
+        background: none; border: none;
+    }
+    .dp-month-year:hover { background: #f3f4f6; }
+    .dp-grid {
+        display: grid; grid-template-columns: repeat(7, 1fr);
+        gap: 2px; padding: 10px 12px 14px;
+    }
+    .dp-day-name {
+        text-align: center; font-size: .68rem; font-weight: 800;
+        letter-spacing: .05em; text-transform: uppercase;
+        color: #9ca3af; padding: 4px 0;
+    }
+    .dp-day {
+        position: relative; display: flex; align-items: center;
+        justify-content: center; height: 36px; border-radius: 8px;
+        font-size: .85rem; font-weight: 600; cursor: pointer;
+        color: #374151; transition: background .12s, color .12s;
+        border: none; background: none; font-family: inherit;
+    }
+    .dp-day:hover:not(.dp-day-empty):not(.dp-day-selected) { background: #fff0f0; color: #8B1A1A; }
+    .dp-day-empty { pointer-events: none; color: transparent; }
+    .dp-day-today:not(.dp-day-selected)::after {
+        content: ''; position: absolute; bottom: 4px; left: 50%;
+        transform: translateX(-50%); width: 4px; height: 4px;
+        border-radius: 50%; background: #8B1A1A;
+    }
+    .dp-day-selected { background: #8B1A1A !important; color: #fff !important; }
+    .dp-day-other-month { color: #d1d5db; }
+    .dp-day-other-month:hover { color: #8B1A1A; }
+    .dp-footer {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 10px 14px 12px;
+        border-top: 1px solid #f3f4f6;
+    }
+    .dp-footer-today {
+        font-size: .78rem; font-weight: 700; color: #8B1A1A;
+        cursor: pointer; background: none; border: none; font-family: inherit;
+        padding: 4px 8px; border-radius: 6px; transition: background .15s;
+    }
+    .dp-footer-today:hover { background: #fff0f0; }
+    .dp-footer-clear {
+        font-size: .78rem; font-weight: 700; color: #6b7280;
+        cursor: pointer; background: none; border: none; font-family: inherit;
+        padding: 4px 8px; border-radius: 6px; transition: background .15s;
+    }
+    .dp-footer-clear:hover { background: #f3f4f6; }
+    /* Year/Month picker overlay */
+    .dp-ym-grid {
+        display: grid; grid-template-columns: repeat(3, 1fr);
+        gap: 6px; padding: 12px;
+    }
+    .dp-ym-btn {
+        padding: 8px 4px; border-radius: 8px; border: none;
+        background: #f9fafb; font-family: inherit;
+        font-size: .82rem; font-weight: 700; color: #374151;
+        cursor: pointer; transition: background .12s, color .12s;
+        text-align: center;
+    }
+    .dp-ym-btn:hover { background: #fff0f0; color: #8B1A1A; }
+    .dp-ym-btn.active { background: #8B1A1A; color: #fff; }
+    .dp-ym-title {
+        font-weight: 800; font-size: .9rem; padding: 12px 16px 8px;
+        border-bottom: 1px solid #f3f4f6; color: #111827;
+    }
+    .dp-year-nav {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 10px 12px 6px;
+    }
+    .dp-year-label { font-weight: 800; font-size: .9rem; color: #111827; }
+
+    /* ── Custom Select ── */
+    .cs-wrap { position: relative; display: block; width: 100%; }
+    .cs-trigger {
+        display: flex; align-items: center; gap: 8px;
+        width: 100%; padding: 10px 14px;
+        background: #fff; border: 1.5px solid #e5e7eb;
+        border-radius: 10px; cursor: pointer;
+        font-family: inherit; font-size: .92rem; color: #111827;
+        transition: border-color .15s, box-shadow .15s;
+        text-align: left; box-sizing: border-box; min-height: 46px;
+    }
+    .cs-trigger:hover  { border-color: #8B1A1A; }
+    .cs-trigger:focus-visible  { outline: none; border-color: #8B1A1A; box-shadow: 0 0 0 3px rgba(139,26,26,.1); }
+    .cs-trigger:focus  { outline: none; }
+    .cs-trigger-text   { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cs-trigger-text.placeholder { color: #9ca3af; }
+    .cs-chevron {
+        flex-shrink: 0; width: 14px; height: 14px;
+        display: flex; align-items: center; justify-content: center;
+        transition: transform .2s;
+    }
+    .cs-chevron::after {
+        content: ''; display: block;
+        width: 8px; height: 8px;
+        border-right: 2px solid #6b7280;
+        border-bottom: 2px solid #6b7280;
+        transform: rotate(45deg) translateY(-3px);
+        transition: border-color .15s;
+    }
+    .cs-trigger:hover .cs-chevron::after  { border-color: #6b7280; }
+    .cs-trigger:focus .cs-chevron::after  { border-color: #6b7280; }
+    .cs-wrap.open .cs-chevron { transform: rotate(180deg); }
+    .cs-dropdown {
+        position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+        z-index: 9998; background: #fff;
+        border: 1px solid rgba(0,0,0,.07); border-radius: 14px;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,.07), 0 20px 50px -8px rgba(0,0,0,.18);
+        overflow: hidden; max-height: 260px; overflow-y: auto;
+        animation: csFadeIn .14s ease;
+        scrollbar-width: thin; scrollbar-color: #e5e7eb transparent;
+    }
+    .cs-dropdown::-webkit-scrollbar { width: 5px; }
+    .cs-dropdown::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 9px; }
+    @keyframes csFadeIn { from { opacity:0; transform: translateY(-4px) scale(.98); } to { opacity:1; transform: translateY(0) scale(1); } }
+    .cs-option {
+        display: flex; align-items: center; gap: 10px;
+        padding: 10px 16px; font-size: .88rem; font-weight: 600;
+        color: #374151; cursor: pointer; transition: background .1s, color .1s;
+        font-family: inherit;
+    }
+    .cs-option:hover  { background: #fff5f5; color: #8B1A1A; }
+    .cs-option.selected { background: #8B1A1A; color: #fff; }
+    .cs-option-dot {
+        width: 7px; height: 7px; border-radius: 50%;
+        background: currentColor; flex-shrink: 0; opacity: .5;
+    }
+    .cs-option.selected .cs-option-dot { opacity: 1; }
+    .cs-divider { height: 1px; background: #f3f4f6; margin: 3px 0; }
+    .email-filter-bare .filter-select-wrap::after { display: none !important; }
+    .email-filter-bare .cs-trigger {
+        border-radius: 18px;
+        background: linear-gradient(180deg, #ffffff 0%, #fff9f9 100%);
+        padding-right: 18px;
+    }
+    </style>
 </head>
 <body class="app-page role-<?= e($user['role'] ?? 'guest') ?>">
 <div class="app-shell">
@@ -52,7 +240,9 @@
             <?php if ($role === 'coordinator'): ?><a class="nav-link <?= $currentRoute === 'coordinator.manage' ? 'active' : '' ?>" href="{{ route('coordinator.manage') }}"><svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-8 8c.8-4 3.8-6 8-6s7.2 2 8 6H4Z"/></svg><span>Student Enrollment</span></a><a class="nav-link <?= $currentRoute === 'coordinator.students' ? 'active' : '' ?>" href="{{ route('coordinator.students') }}"><svg viewBox="0 0 24 24"><path d="M4 6h16v2H4V6Zm0 5h16v2H4v-2Zm0 5h16v2H4v-2Z"/></svg><span>My Students</span></a><a class="nav-link <?= $currentRoute === 'coordinator.evaluations' ? 'active' : '' ?>" href="{{ route('coordinator.evaluations') }}"><svg viewBox="0 0 24 24"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17Z"/></svg><span>Evaluations</span></a><?php endif; ?>
             <?php if ($role === 'student'): ?>
                 <?php $studentLocked = !($studentProfileCompleted ?? true); ?>
-                <a class="nav-link <?= in_array($currentRoute, ['student.portal', 'student.profile'], true) ? 'active' : '' ?>" href="{{ route($studentLocked ? 'student.profile' : 'student.portal') }}"><svg viewBox="0 0 24 24"><path d="M12 3 2 8l10 5 8-4v6h2V8L12 3Zm-6 9v4c2 3 10 3 12 0v-4l-6 3-6-3Z"/></svg><span><?= $studentLocked ? 'Complete Profile' : 'Student Portal' ?></span></a>
+                <?php if ($studentLocked): ?>
+                    <a class="nav-link <?= $currentRoute === 'student.profile' ? 'active' : '' ?>" href="{{ route('student.profile') }}"><svg viewBox="0 0 24 24"><path d="M12 3 2 8l10 5 8-4v6h2V8L12 3Zm-6 9v4c2 3 10 3 12 0v-4l-6 3-6-3Z"/></svg><span>Complete Profile</span></a>
+                <?php endif; ?>
                 <a class="nav-link <?= $currentRoute === 'student.records' ? 'active' : '' ?>" href="{{ route('student.records') }}"><svg viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2Zm0 16H5V9h14v10Zm-9-8H7v3h3v3h3v-3h3v-3h-3V8h-3v3Z"/></svg><span>Submit Record</span></a>
                 <a class="nav-link <?= $currentRoute === 'student.timeline' ? 'active' : '' ?>" href="{{ route('student.timeline') }}"><svg viewBox="0 0 24 24"><path d="M7 3a2 2 0 0 1 2 2v1h6V5a2 2 0 1 1 4 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm0 5v11h10V8H7Zm2 2h6v2H9v-2Zm0 4h4v2H9v-2Z"/></svg><span>Activity Timeline</span></a>
                 <a class="nav-link <?= $currentRoute === 'student.documents' ? 'active' : '' ?>" href="{{ route('student.documents') }}"><svg viewBox="0 0 24 24"><path d="M7 2h7l5 5v13a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm7 1.5V8h4.5L14 3.5ZM9 12h6v2H9v-2Zm0 4h6v2H9v-2Z"/></svg><span>Documents</span></a>

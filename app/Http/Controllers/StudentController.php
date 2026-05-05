@@ -15,9 +15,10 @@ class StudentController extends Controller
         return $this->renderNative($p, 'student.dashboard', $this->studentPageData($p, 'Student Dashboard'));
     }
 
-    public function portal(PracticumService $p): View
+    public function portal(PracticumService $p): RedirectResponse
     {
-        return $this->renderNative($p, 'student.portal', $this->studentPageData($p, 'Student Portal'));
+        $this->requireRole($p, 'student');
+        return redirect()->route('student.documents');
     }
 
     public function records(PracticumService $p): View

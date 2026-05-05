@@ -14,6 +14,14 @@ Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard
 
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->name('login.post');
+Route::get('/admin/login', [AuthController::class, 'showAdminLogin'])->name('admin.login');
+Route::post('/admin/login', [AuthController::class, 'adminLogin'])->name('admin.login.post');
+Route::get('/coordinator/login', [AuthController::class, 'showCoordinatorLogin'])->name('coordinator.login');
+Route::post('/coordinator/login', [AuthController::class, 'coordinatorLogin'])->name('coordinator.login.post');
+Route::get('/student/login', [AuthController::class, 'showStudentLogin'])->name('student.login');
+Route::post('/student/login', [AuthController::class, 'studentLogin'])->name('student.login.post');
+Route::get('/partner/login', [AuthController::class, 'showPartnerLogin'])->name('partner.login');
+Route::post('/partner/login', [AuthController::class, 'partnerLogin'])->name('partner.login.post');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllRead'])->name('notifications.mark_all_read');
 
@@ -82,6 +90,14 @@ Route::prefix('practicum-system')->group(function () {
 	Route::get('/dashboard', [DashboardController::class, 'index']);
 	Route::get('/login', [AuthController::class, 'showLogin']);
 	Route::post('/login', [AuthController::class, 'login']);
+	Route::get('/admin/login', [AuthController::class, 'showAdminLogin']);
+	Route::post('/admin/login', [AuthController::class, 'adminLogin']);
+	Route::get('/coordinator/login', [AuthController::class, 'showCoordinatorLogin']);
+	Route::post('/coordinator/login', [AuthController::class, 'coordinatorLogin']);
+	Route::get('/student/login', [AuthController::class, 'showStudentLogin']);
+	Route::post('/student/login', [AuthController::class, 'studentLogin']);
+	Route::get('/partner/login', [AuthController::class, 'showPartnerLogin']);
+	Route::post('/partner/login', [AuthController::class, 'partnerLogin']);
 	Route::post('/logout', [AuthController::class, 'logout']);
 	Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllRead']);
 
