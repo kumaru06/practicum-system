@@ -14,20 +14,30 @@ class EnsureAdminUser extends Command
     {
         $hash = password_hash('Admin@123', PASSWORD_BCRYPT);
 
-        DB::statement("
-            INSERT INTO users
-                (id, name, email, password_hash, role, created_by, is_active, password_changed)
-            VALUES
-                (1, 'System Administrator', 'admin@ama.edu.ph', ?, 'admin', NULL, 1, 1)
-            ON DUPLICATE KEY UPDATE
-                name           = VALUES(name),
-                password_hash  = VALUES(password_hash),
-                role           = VALUES(role),
-                is_active      = 1,
-                password_changed = 1
-        ", [$hash]);
+        $existing = DB::table('users')->where('email', 'admin@ama.edu.ph')->first();
 
-        $this->info('Admin user ensured: admin@ama.edu.ph / Admin@123');
+        if ($existing) {
+            DB::table('users')->where('email', 'admin@ama.edu.ph')->update([
+                'password_hash'    => $hash,
+                'is_active'        => 1,
+                'password_changed' => 1,
+                'role'             => 'admin',
+            ]);
+            $this->info('Admin user updated: admin@ama.edu.ph / Admin@123');
+        } else {
+            DB::table('users')->insert([
+                'name'             => 'System Administrator',
+                'email'            => 'admin@ama.edu.ph',
+                'password_hash'    => $hash,
+                'role'             => 'admin',
+                'created_by'       => null,
+                'is_active'        => 1,
+                'password_changed' => 1,
+            ]);
+            $this->info('Admin user created: admin@ama.edu.ph / Admin@123');
+        }
+
         return 0;
     }
 }
+

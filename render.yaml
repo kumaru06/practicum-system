@@ -19,3 +19,5 @@ services:
         value: sync
       - key: FILESYSTEM_DISK
         value: public
+      - key: DB_CONNECTION
+        value: mysql
