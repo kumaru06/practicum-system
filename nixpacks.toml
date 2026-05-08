@@ -1,0 +1,14 @@
+[phases.setup]
+nixPkgs = ["php82", "php82Extensions.pdo", "php82Extensions.pdo_mysql", "php82Extensions.mbstring", "php82Extensions.tokenizer", "php82Extensions.xml", "php82Extensions.ctype", "php82Extensions.fileinfo", "php82Extensions.bcmath", "php82Extensions.curl", "nginx", "libmysqlclient", "phpPackages.composer"]
+
+[phases.install]
+cmds = [
+  "mkdir -p /var/log/nginx && mkdir -p /var/cache/nginx",
+  "composer install --no-dev --optimize-autoloader --ignore-platform-reqs"
+]
+
+[phases.build]
+cmds = []
+
+[start]
+cmd = "php artisan migrate --force && php -S 0.0.0.0:$PORT -t public/"
