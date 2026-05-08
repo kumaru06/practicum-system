@@ -3,7 +3,7 @@ services:
     name: practicum-system
     env: php
     buildCommand: composer install --no-dev --optimize-autoloader
-    startCommand: php artisan migrate --force && php artisan db:seed --force && php -S 0.0.0.0:$PORT -t public/
+    startCommand: php artisan migrate --force && (php artisan db:seed --force || true) && php -S 0.0.0.0:$PORT -t public/
     envVars:
       - key: APP_ENV
         value: production

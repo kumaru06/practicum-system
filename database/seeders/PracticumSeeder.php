@@ -9,26 +9,34 @@ class PracticumSeeder extends Seeder
 {
     public function run(): void
     {
-        DB::table('users')->updateOrInsert(
-            ['id' => 1],
-            [
-                'name' => 'System Administrator',
-                'email' => 'admin@ama.edu.ph',
-                'password_hash' => password_hash('Admin@123', PASSWORD_BCRYPT),
-                'role' => 'admin',
-                'created_by' => null,
-                'is_active' => 1,
-                'password_changed' => 1,
-            ]
-        );
+        // Admin user — upsert by email so it always works regardless of id state
+        $hash = password_hash('Admin@123', PASSWORD_BCRYPT);
+        DB::statement("
+            INSERT INTO users (id, name, email, password_hash, role, created_by, is_active, password_changed)
+            VALUES (1, 'System Administrator', 'admin@ama.edu.ph', ?, 'admin', NULL, 1, 1)
+            ON DUPLICATE KEY UPDATE
+                name = VALUES(name),
+                password_hash = VALUES(password_hash),
+                role = VALUES(role),
+                is_active = 1,
+                password_changed = 1
+        ", [$hash]);
 
+        // Programs — upsert by id, ignore code conflicts
         foreach ([
-            ['id' => 1, 'code' => 'BSIT', 'name' => 'Bachelor of Science in Information Technology', 'required_hours' => 486, 'is_active' => 1],
-            ['id' => 2, 'code' => 'BSBA', 'name' => 'Bachelor of Science in Business Administration', 'required_hours' => 600, 'is_active' => 1],
-            ['id' => 3, 'code' => 'BSCS', 'name' => 'Bachelor of Science in Computer Science', 'required_hours' => 120, 'is_active' => 1],
-            ['id' => 4, 'code' => 'BSCOE', 'name' => 'Bachelor of Science in Computer Engineering', 'required_hours' => 240, 'is_active' => 1],
-        ] as $program) {
-            DB::table('programs')->updateOrInsert(['id' => $program['id']], $program);
+            [1, 'BSIT',  'Bachelor of Science in Information Technology', 486,  1],
+            [2, 'BSBA',  'Bachelor of Science in Business Administration', 600,  1],
+            [3, 'BSCS',  'Bachelor of Science in Computer Science',        120,  1],
+            [4, 'BSCOE', 'Bachelor of Science in Computer Engineering',    240,  1],
+        ] as [$id, $code, $name, $hours, $active]) {
+            DB::statement("
+                INSERT INTO programs (id, code, name, required_hours, is_active)
+                VALUES (?, ?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE
+                    name = VALUES(name),
+                    required_hours = VALUES(required_hours),
+                    is_active = VALUES(is_active)
+            ", [$id, $code, $name, $hours, $active]);
         }
     }
 }
