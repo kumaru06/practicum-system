@@ -14,7 +14,7 @@ class PracticumSeeder extends Seeder
             [
                 'name' => 'System Administrator',
                 'email' => 'admin@ama.edu.ph',
-                'password_hash' => '$2y$10$jLPFjhK2OC8sKR2Exb/em.SlW8WO1H7U1JwZP41l7iM4GlXoy/nhK',
+                'password_hash' => password_hash('Admin@123', PASSWORD_BCRYPT),
                 'role' => 'admin',
                 'created_by' => null,
                 'is_active' => 1,
