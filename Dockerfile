@@ -14,6 +14,6 @@ RUN composer install --no-dev --optimize-autoloader --ignore-platform-reqs
 
 RUN chmod -R 775 storage bootstrap/cache
 
-EXPOSE 8000
+EXPOSE 10000
 
-CMD php artisan config:clear && php artisan migrate --force && php -S 0.0.0.0:8000 -t public/
+CMD php artisan config:clear && php artisan migrate --force && php -S 0.0.0.0:${PORT:-10000} -t public/
