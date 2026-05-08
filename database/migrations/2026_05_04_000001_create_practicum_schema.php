@@ -7,8 +7,9 @@ return new class extends Migration
 {
     public function up(): void
     {
+        $isMySQL = DB::getDriverName() === 'mysql';
+        if ($isMySQL) DB::unprepared('SET FOREIGN_KEY_CHECKS = 0;');
         DB::unprepared(<<<'SQL'
-SET FOREIGN_KEY_CHECKS = 0;
 DROP TABLE IF EXISTS evaluations;
 DROP TABLE IF EXISTS weekly_reports;
 DROP TABLE IF EXISTS daily_time_records;
@@ -22,8 +23,9 @@ DROP TABLE IF EXISTS programs;
 DROP TABLE IF EXISTS coordinators;
 DROP TABLE IF EXISTS partner_companies;
 DROP TABLE IF EXISTS users;
-SET FOREIGN_KEY_CHECKS = 1;
-
+SQL);
+        if ($isMySQL) DB::unprepared('SET FOREIGN_KEY_CHECKS = 1;');
+        DB::unprepared(<<<'SQL'
 CREATE TABLE users (
   id INT AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(150) NOT NULL,
@@ -193,8 +195,9 @@ SQL);
 
     public function down(): void
     {
+        $isMySQL = DB::getDriverName() === 'mysql';
+        if ($isMySQL) DB::unprepared('SET FOREIGN_KEY_CHECKS = 0;');
         DB::unprepared(<<<'SQL'
-SET FOREIGN_KEY_CHECKS = 0;
 DROP TABLE IF EXISTS evaluations;
 DROP TABLE IF EXISTS weekly_reports;
 DROP TABLE IF EXISTS daily_time_records;
@@ -208,7 +211,7 @@ DROP TABLE IF EXISTS programs;
 DROP TABLE IF EXISTS coordinators;
 DROP TABLE IF EXISTS partner_companies;
 DROP TABLE IF EXISTS users;
-SET FOREIGN_KEY_CHECKS = 1;
 SQL);
+        if ($isMySQL) DB::unprepared('SET FOREIGN_KEY_CHECKS = 1;');
     }
 };
