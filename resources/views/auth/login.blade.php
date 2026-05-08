@@ -261,6 +261,140 @@
         .portal-link:hover .portal-link-desc { color: #8B1A1A; }
         .portal-link-arrow { margin-left: auto; color: #d1d5db; transition: color .18s, transform .18s; }
         .portal-link:hover .portal-link-arrow { color: #8B1A1A; transform: translateX(2px); }
+
+        .login-image-text {
+            max-width: 520px;
+        }
+
+        .login-image-panel {
+            isolation: isolate;
+        }
+
+        @media (max-width: 1024px) {
+            .login-form-panel {
+                padding: 28px;
+            }
+
+            .lc {
+                padding: 32px 28px 28px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .login-page {
+                min-height: 100dvh;
+                background:
+                    linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+            }
+
+            .login-split {
+                display: block;
+                min-height: 100dvh;
+                height: auto;
+                overflow: visible;
+            }
+
+            .login-image-panel {
+                display: none;
+            }
+
+            .login-form-panel {
+                display: grid;
+                place-items: center;
+                min-height: 100dvh;
+                margin-top: 0;
+                padding: 24px 16px;
+                background: transparent;
+                position: relative;
+                z-index: 2;
+            }
+
+            .lc {
+                width: 100%;
+                max-width: 430px;
+                padding: 26px 20px 22px;
+                border-radius: 28px;
+                box-shadow: 0 18px 42px rgba(15, 23, 42, .16);
+            }
+
+            .lc-brand {
+                margin-bottom: 20px;
+            }
+
+            .lc-logo {
+                width: 78px;
+            }
+
+            .lc-school {
+                font-size: .74rem;
+            }
+
+            .lc-heading {
+                font-size: 1.7rem;
+                line-height: 1.15;
+            }
+
+            .lc-sub {
+                font-size: .82rem;
+                margin-bottom: 18px;
+            }
+
+            .portal-grid {
+                gap: 12px;
+            }
+
+            .portal-link {
+                padding: 14px;
+                gap: 12px;
+                align-items: center;
+                border-radius: 16px;
+            }
+
+            .portal-link-title {
+                font-size: .92rem;
+                line-height: 1.35;
+            }
+
+            .portal-link-desc {
+                font-size: .74rem;
+                line-height: 1.35;
+            }
+
+            .portal-link-arrow {
+                flex-shrink: 0;
+            }
+
+            .lc-tabs {
+                display: grid;
+                grid-template-columns: 1fr;
+            }
+
+            .lc-tab {
+                flex: initial;
+                padding: 11px 12px;
+                font-size: .8rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .login-form-panel {
+                padding: 18px 12px;
+            }
+
+            .lc {
+                padding: 24px 16px 18px;
+                border-radius: 24px;
+            }
+
+            .lc-heading {
+                font-size: 1.45rem;
+            }
+
+            .portal-link-icon {
+                width: 36px;
+                height: 36px;
+            }
+        }
     </style>
 </head>
 <body class="login-page">
