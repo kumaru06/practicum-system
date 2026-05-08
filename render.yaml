@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: practicum-system
+    env: php
+    buildCommand: composer install --no-dev --optimize-autoloader
+    startCommand: php artisan migrate --force && php -S 0.0.0.0:$PORT -t public/
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: false
+      - key: APP_KEY
+        value: base64:NhH4oeK2BPj49fFQGvwO/v3Vy0t7fVSc3QInCkNSdhI=
+      - key: SESSION_DRIVER
+        value: cookie
+      - key: CACHE_STORE
+        value: file
+      - key: QUEUE_CONNECTION
+        value: sync
+      - key: FILESYSTEM_DISK
+        value: public
